@@ -48,6 +48,7 @@ export const useSuggestion = () => {
     fuel:     formHook.form.fuel,     setFuel:     (v: string[]) => formHook.updateField('fuel', v),
     gear:     formHook.form.gear,     setGear:     (v: string)   => formHook.updateField('gear', v),
     extra:    formHook.form.extra,    setExtra:    (v: string)   => formHook.updateField('extra', v),
+    touched:      formHook.touched,
     modalType:    formHook.modalType,
     setModalType: formHook.setModalType,
     // Status

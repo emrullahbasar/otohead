@@ -13,6 +13,7 @@ interface Props {
   fuel:        string[];
   gear:        string;
   extra:       string; setExtra:    (val: string) => void;
+  touched:     { caseType: boolean; fuel: boolean; gear: boolean };
   loading:     boolean;
   setModalType:(val: 'fuel' | 'gear' | 'caseType' | null) => void;
   handleSearch:() => void;
@@ -26,8 +27,11 @@ const formatNumber = (value: string): string => {
   return num.toLocaleString('en-US');
 };
 
-// Seçim label'ı — boş veya "Fark Etmez" durumunu handle eder
-const getLabel = (selected: string[], emptyLabel = 'Seçin'): string => {
+// Seçim label'ı — dokunulmadıysa "Seçin", dokunulup "Fark Etmez" seçildiyse
+// (boş dizi) "Fark Etmez" gösterir. touched olmadan boş diziyi "Fark Etmez"
+// sanmak, hiç açılmamış bir alanı zaten cevaplanmış gibi gösterirdi.
+const getLabel = (selected: string[], isTouched: boolean): string => {
+  if (!isTouched) return 'Seçin';
   if (selected.length === 0) return 'Fark Etmez';
   return selected.join(', ');
 };
@@ -45,6 +49,7 @@ export const SuggestionForm = ({
   caseType, setCaseType,
   fuel, gear,
   extra, setExtra,
+  touched,
   loading, setModalType, handleSearch,
 }: Props) => {
   const yearMinRef = useRef<TextInput>(null);
@@ -104,8 +109,8 @@ export const SuggestionForm = ({
         style={styles.selector}
         onPress={() => !loading && setModalType('caseType')}
       >
-        <Text style={styles.selectorText} numberOfLines={1}>
-          {getLabel(caseType)}
+        <Text style={touched.caseType ? styles.selectorText : styles.selectorPlaceholder} numberOfLines={1}>
+          {getLabel(caseType, touched.caseType)}
         </Text>
         <Text style={styles.selectorArrow}>›</Text>
       </Pressable>
@@ -117,8 +122,8 @@ export const SuggestionForm = ({
         style={styles.selector}
         onPress={() => !loading && setModalType('fuel')}
       >
-        <Text style={styles.selectorText} numberOfLines={1}>
-          {getLabel(fuel)}
+        <Text style={touched.fuel ? styles.selectorText : styles.selectorPlaceholder} numberOfLines={1}>
+          {getLabel(fuel, touched.fuel)}
         </Text>
         <Text style={styles.selectorArrow}>›</Text>
       </Pressable>

@@ -17,14 +17,30 @@ const INITIAL_FORM: SuggestionForm = {
   caseType: [], fuel: [], gear: '', extra: '',
 };
 
+// Kasa/Yakıt "Fark Etmez" seçilince boş diziye döner (SelectionModal), bu yüzden
+// "hiç dokunulmadı" ile "Fark Etmez seçildi" durumunu ayırt etmek için ayrı bir
+// touched bayrağı tutuyoruz — yoksa geçerli bir "Fark Etmez" seçimi de zorunluluk
+// hatası olarak reddedilir.
+interface Touched {
+  caseType: boolean;
+  fuel:     boolean;
+  gear:     boolean;
+}
+
+const INITIAL_TOUCHED: Touched = { caseType: false, fuel: false, gear: false };
+
 export const useSuggestionForm = () => {
   const [form,      setForm]      = useState<SuggestionForm>(INITIAL_FORM);
+  const [touched,   setTouched]   = useState<Touched>(INITIAL_TOUCHED);
   const [modalType, setModalType] = useState<ModalType>(null);
 
   const updateField = useCallback(<K extends keyof SuggestionForm>(
     field: K, value: SuggestionForm[K]
   ) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'caseType' || field === 'fuel' || field === 'gear') {
+      setTouched(prev => ({ ...prev, [field]: true }));
+    }
   }, []);
 
   const validate = (): string | null => {
@@ -34,11 +50,16 @@ export const useSuggestionForm = () => {
     if (parseInt(form.yearMin) < 1990 || parseInt(form.yearMax) > new Date().getFullYear() + 1) {
       return 'Geçerli bir yıl aralığı giriniz.';
     }
+    if (!touched.caseType) return 'Kasa tipi seçimi zorunludur.';
+    if (!touched.fuel) return 'Yakıt tipi seçimi zorunludur.';
+    if (!touched.gear) return 'Vites tipi seçimi zorunludur.';
+    if (!form.extra.trim()) return 'Kullanım amacınızı açıklamanız zorunludur.';
     return null;
   };
 
   const resetForm = useCallback(() => {
     setForm(INITIAL_FORM);
+    setTouched(INITIAL_TOUCHED);
   }, []);
 
   const buildPayload = (clientId: string) => ({
@@ -54,6 +75,7 @@ export const useSuggestionForm = () => {
 
   return {
     form,
+    touched,
     modalType, setModalType,
     updateField,
     validate,

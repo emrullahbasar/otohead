@@ -105,6 +105,7 @@ export default function FindTab({ suggestion }: Props) {
           fuel={suggestion.fuel}
           gear={suggestion.gear}
           extra={suggestion.extra}         setExtra={suggestion.setExtra}
+          touched={suggestion.touched}
           loading={suggestion.loading}
           setModalType={suggestion.setModalType}
           handleSearch={suggestion.handleSearch}
