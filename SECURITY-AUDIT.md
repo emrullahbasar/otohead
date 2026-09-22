@@ -121,11 +121,11 @@ kaldırıldı), Apps Script kaynağı (kullanıcı tarafından deploy edildi).
 | SEC-008 | Yerel SQLite veritabanı şifresiz (expo-sqlite, SQLCipher yok) | Medium | `src/services/database.ts` | MASVS-STORAGE-1 | Açık (P2 — allowBackup kapandığı için pratik risk düştü) |
 | SEC-009 | Cleartext HTTP (`http://`) ile local API'ye istek atılıyor | Medium | `src/config/api.ts:4`, `.env:1-2` | MASVS-NETWORK-1 | **Çözüldü** — env'den okunuyor, tanımsızsa özellik devre dışı |
 | SEC-010 | `backend/data/arabamcepte.db*` (uygulama veritabanı) git'e tracked | Low-Medium | `backend/data/` | MASVS-STORAGE-1 | **Çözüldü** — tracking'den çıkarıldı |
-| SEC-011 | Ana proje (`C:\mobile`) hiç git repository değil | Low (süreç) | `C:\mobile` | — | Açık (P2, önlem: `.gitignore`'a `.env` eklendi) |
+| SEC-011 | Ana proje (`C:\mobile`) hiç git repository değil | Low (süreç) | `C:\mobile` | — | **Çözüldü** — yerel `git init` + ilk commit yapıldı (`.env`/`node_modules`/`android`/`backend` doğrulanarak hariç tutuldu). Remote eklenmedi, kullanıcı kararı |
 | SEC-012 | 35 (root) + 14 (backend) bilinen bağımlılık zafiyeti, çoğu build-tooling ama 1'er critical | Low-Medium | `package-lock.json` her ikisi | MASVS-CODE-9 | **Kısmen çözüldü** — root 35→20 (kalan `--force`/breaking gerektiriyor), backend 4→0 |
 | SEC-013 | iOS platform sertleştirmesi denetlenemedi (`/ios` yok) | — | — | MASVS-PLATFORM | NEEDS-MANUAL-REVIEW |
 | SEC-014 | `app.json` ve `app.config.ts` aynı anda mevcut, ayarlar tutarsız/çatallı | Low | `app.json`, `app.config.ts` | — | **Çözüldü** — birleştirildi, `app.json` silindi |
-| SEC-015 | Kullanılmayan/gereksiz Android izinleri (RECORD_AUDIO, SYSTEM_ALERT_WINDOW) kod içinde referans bulunamadı | Low | `AndroidManifest.xml:6-7` | MASVS-PLATFORM-1 | NEEDS-MANUAL-REVIEW |
+| SEC-015 | Kullanılmayan/gereksiz Android izinleri (RECORD_AUDIO, SYSTEM_ALERT_WINDOW) kod içinde referans bulunamadı | Low | `AndroidManifest.xml:6-7` | MASVS-PLATFORM-1 | **Çözüldü** — kaynak paketler kaldırıldı, `blockedPermissions` eklendi |
 | SEC-016 | Google Sheets'e formula/CSV injection — kullanıcı girdisi (`description`, `budget`, `message`, ...) sanitize edilmeden `appendRow` ile hücreye yazılıyor | High | Apps Script `handleSubmit`, `handleEvalSubmit` | MASVS-CODE-4 (OWASP CSV Injection) | **Çözüldü** — `sanitizeCell_()` eklendi |
 | SEC-017 | Apps Script `catch` blokları `err.message`'ı doğrudan client'a döndürüyor (bilgi sızıntısı) | Low | Apps Script `doPost`/`doGet` catch blokları | MASVS-CODE | **Çözüldü** — generic mesaj + `Logger.log` |
 
@@ -522,13 +522,31 @@ SEC-016/SEC-017'ye işlendi. Ek gözlem: `SPREADSHEET_ID` sabiti tanımlı ama h
 etkisi yok, sadece ölü kod. `testAccess`/`testSheet` fonksiyonları debug amaçlı, `doGet`/`doPost`
 üzerinden erişilemiyor, risk yok.
 
-### [SEC-013 / SEC-015] Açık kalan NEEDS-MANUAL-REVIEW kalemleri
+### [SEC-015] Çözüldü — kaynağı bulundu ve kaldırıldı
 
-- **SEC-013:** iOS native projesi diskte yok, ATS/pinning/pasteboard/ekran koruması
-  değerlendirilemedi. `npx expo prebuild --platform ios` sonrası tekrar denetlenmeli.
-- **SEC-015:** `RECORD_AUDIO` ve `SYSTEM_ALERT_WINDOW` izinlerinin hangi native modül
-  tarafından enjekte edildiği (muhtemelen bir transitive Expo plugin) doğrulanmalı;
-  kullanılmıyorsa Play Store inceleme sürecinde de "gereksiz izin" olarak işaretlenebilir.
+Kaynak: `RECORD_AUDIO` Expo'nun `expo-image-picker` plugin'i tarafından zaten build sırasında
+otomatik engelleniyordu (`microphonePermission: false` ayarı sayesinde, manifest'te
+`tools:node="remove"` olarak görünüyor — ek işlem gerekmedi). `SYSTEM_ALERT_WINDOW` ise iki
+kaynaktan geliyordu:
+1. Expo'nun **varsayılan şablon manifest'i** (`@expo/config-plugins/withAndroidBaseMods.js`) —
+   pakete özgü değil, Expo'nun her yeni projeye eklediği "opsiyonel, gerekmiyorsa kaldır" izin
+   listesinin bir parçası.
+2. Uygulamada **hiç kullanılmayan** `@react-native-community/push-notification-ios` ve
+   `react-native-push-notification` paketleri (uygulama zaten yalnızca `expo-notifications`
+   kullanıyor) — kaldırıldı.
+
+**Düzeltme:** İki ölü paket `package.json`'dan çıkarıldı; `app.config.ts`'e
+`android.blockedPermissions: ['android.permission.SYSTEM_ALERT_WINDOW']` eklendi.
+`npx expo prebuild --platform android --clean` sonrası doğrulandı — her iki izin de
+manifest'te `tools:node="remove"` ile işaretli, final APK'da bulunmayacak.
+
+### [SEC-013] Açık — bu ortamda denetlenemedi
+
+iOS native projesi bu makinede üretilemedi: `npx expo prebuild --platform ios` denendi,
+CocoaPods bağımlılık çözümlemesi macOS/Linux gerektiriyor, Windows'ta
+`⚠️ Skipping generating the iOS native project files` ile başarısız oluyor. ATS, TLS pinning,
+pasteboard/ekran koruması denetimi yalnızca bir Mac'te (veya EAS Build üzerinden) tekrar
+denenerek yapılabilir. NEEDS-MANUAL-REVIEW olarak açık kalıyor.
 
 ---
 

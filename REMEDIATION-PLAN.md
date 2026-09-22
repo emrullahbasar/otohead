@@ -40,14 +40,14 @@ gömülmeyen) `secret`'ını aldığı bir `register` akışı kuruldu. Detaylar
 
 ## P2 — Backlog
 
-| # | Aksiyon | İlgili | Efor |
-|---|---|---|---|
-| 14 | `expo prebuild --platform ios` çalıştırıp iOS ATS/pinning/pasteboard denetimini tamamla | SEC-013 | M |
-| 15 | Gereksiz Android izinlerini (RECORD_AUDIO, SYSTEM_ALERT_WINDOW) doğrula/kaldır | SEC-015 | S |
-| 16 | SQLite için SQLCipher/alan-bazlı şifreleme değerlendirmesi | SEC-008 | L |
-| 17 | CI pipeline'ına `gitleaks` + `osv-scanner`/`npm audit` ekle (şu an CI yok) | — | M |
-| 18 | Root projeyi git'e al (P0 #4 tamamlandıktan sonra), `SECURITY.md` ekle | SEC-011 | S |
-| 19 | Runtime koruma (root/jailbreak tespiti, obfuscation) — düşük öncelik, MVP aşamasında zorunlu değil | — | L |
+| # | Aksiyon | İlgili | Efor | Durum |
+|---|---|---|---|---|
+| 14 | `expo prebuild --platform ios` çalıştırıp iOS ATS/pinning/pasteboard denetimini tamamla | SEC-013 | M | ❌ Bu ortamda imkansız — CocoaPods çözümlemesi macOS/Linux gerektiriyor. Bir Mac'te tekrar denenmeli |
+| 15 | Gereksiz Android izinlerini (RECORD_AUDIO, SYSTEM_ALERT_WINDOW) doğrula/kaldır | SEC-015 | S | ✅ Tamamlandı — kullanılmayan push-notification paketleri kaldırıldı, `blockedPermissions` eklendi, ikisi de manifest'te `tools:node="remove"` |
+| 16 | SQLite için SQLCipher/alan-bazlı şifreleme değerlendirmesi | SEC-008 | L | ⏸ Kullanıcı kararıyla atlandı — allowBackup kapandığı için risk/efor dengesi uygun değil |
+| 17 | CI pipeline'ına `gitleaks` + `npm audit` ekle | — | M | ✅ `backend/` için tamamlandı (GitHub Actions, her push/PR'da çalışıyor). Root henüz remote'a bağlı değil, remote eklenince aynısı oraya da eklenebilir |
+| 18 | Root projeyi git'e al, `SECURITY.md` ekle | SEC-011 | S | ✅ Yerel `git init` + ilk commit yapıldı (remote/GitHub eklenmedi, kullanıcı kararı bekliyor). `SECURITY.md` eklenmedi |
+| 19 | Runtime koruma (root/jailbreak tespiti, obfuscation) | — | L | ⏸ Kullanıcı kararıyla atlandı — MVP için gereksiz karmaşıklık |
 
 ## Tamamlanan ek işler (plan dışı, talep üzerine)
 
@@ -66,13 +66,19 @@ tamamen kaldırılmasıyla farklı bir yoldan çözüldü). Detaylar `SECURITY-A
 bulgular kapandı. Detaylar `SECURITY-AUDIT.md` → "Uygulanan P1 Aksiyonları" bölümünde
 (canlı doğrulama komutları dahil).
 
-**Kalan açık maddeler (yalnızca P2/backlog, acil değil):**
-- SEC-008: SQLite şifreleme (SQLCipher) — allowBackup kapandığı için pratik risk zaten düştü
-- SEC-011: Root projeyi git'e al
-- SEC-013: iOS native proje denetimi (`/ios` diskte yok, prebuild gerektiriyor)
-- SEC-015: Kullanılmayan Android izinlerinin doğrulanması (RECORD_AUDIO, SYSTEM_ALERT_WINDOW)
-- SEC-012 kalanı: root'ta `--force`/breaking-change gerektiren 20 bağımlılık zafiyeti (çoğu Expo tooling, native build riski var)
-- Madde 17/19: CI güvenlik taraması, runtime koruma (root/jailbreak tespiti) — MVP için zorunlu değil
+**P2 durumu (2026-09-22):** 3/6 madde tamamlandı (15, 17-backend, 18), 2 madde kullanıcı
+kararıyla bilinçli olarak atlandı (16 SQLCipher, 19 runtime koruma), 1 madde bu ortamda
+teknik olarak imkansız (14 iOS — Mac gerekiyor).
 
-**Sıradaki adım:** İsterseniz P2 listesinden istediğiniz maddeleri belirleyin, ya da şimdilik
-burada durabiliriz — proje artık P0+P1 kapsamında güvenlik açısından sağlam bir durumda.
+**Gerçekten kalan açık maddeler:**
+- SEC-013: iOS denetimi — bir Mac'te `npx expo prebuild --platform ios` çalıştırıp
+  Info.plist/ATS/pinning manuel incelenmeli
+- SEC-012 kalanı: root'ta `--force`/breaking-change gerektiren ~20 bağımlılık zafiyeti
+  (çoğu Expo build-tooling'in transitive'i, native build'i bozma riski var — düzenli
+  `expo upgrade` ile organik olarak azalır)
+- Root repo henüz bir GitHub/remote'a bağlı değil — istenirse eklenebilir
+- `SECURITY.md` dosyası eklenmedi (istenirse P2'ye tekrar alınabilir)
+
+**Sonuç:** Denetimin açılışındaki tüm Critical/High bulgular ve P2'nin makul olan kısmı
+kapandı. Kalanlar ya bu ortamın teknik sınırları (iOS/Mac) ya da kullanıcının bilinçli
+"gerek yok" kararları.
