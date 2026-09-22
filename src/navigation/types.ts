@@ -1,7 +1,3 @@
-export type RootStackParamList = {
-  Main: undefined;
-};
-
 export type MainTabParamList = {
   'Ana Sayfa':     undefined;
   'Yakıt':         undefined;

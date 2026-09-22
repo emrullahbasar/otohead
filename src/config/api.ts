@@ -7,6 +7,5 @@ const API_PORT = process.env.EXPO_PUBLIC_API_PORT ?? '3000';
 export const API_BASE_URL = API_IP ? `http://${API_IP}:${API_PORT}/api` : '';
 
 export const API_ENDPOINTS = {
-  cars:  `${API_BASE_URL}/cars`,
-  users: `${API_BASE_URL}/users`,
+  cars: `${API_BASE_URL}/cars`,
 } as const;
