@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { loadCars } from '../services/storage';
 
 export const useHomeStats = () => {
@@ -6,9 +7,13 @@ export const useHomeStats = () => {
   const [recordCount, setRecordCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadStats();
-  }, []);
+  // Ana Sayfa'ya her dönüldüğünde tazele — Araç Yönetimi'nde eklenen/silinen
+  // araç/kayıt sayıları eskiden yalnızca ilk açılışta hesaplanıyordu.
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [])
+  );
 
   const loadStats = async () => {
     setLoading(true);

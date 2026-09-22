@@ -6,6 +6,7 @@ import {
   updateMaintenanceRecord,
   deleteMaintenanceRecord,
 } from '../services/storage';
+import { getErrorMessage } from '../config/errors';
 
 export const MAINTENANCE_TYPES = [
   'Periyodik Bakım', 'Sigorta', 'Kasko', 'Muayene',
@@ -62,10 +63,14 @@ export const useRecordManager = (
       price:    recordPrice   || undefined,
     };
 
-    await saveMaintenanceRecord(newRecord, selectedCar.id);
-    const updatedCar = { ...selectedCar, records: [newRecord, ...selectedCar.records] };
-    updateCarInList(updatedCar);
-    resetForm();
+    try {
+      await saveMaintenanceRecord(newRecord, selectedCar.id);
+      const updatedCar = { ...selectedCar, records: [newRecord, ...selectedCar.records] };
+      updateCarInList(updatedCar);
+      resetForm();
+    } catch (err) {
+      Alert.alert('Hata', getErrorMessage(err));
+    }
   };
 
   const handleDeleteRecord = (recordId: string) => {
@@ -78,12 +83,16 @@ export const useRecordManager = (
         {
           text: 'Sil', style: 'destructive',
           onPress: async () => {
-            await deleteMaintenanceRecord(recordId);
-            const updatedCar = {
-              ...selectedCar,
-              records: selectedCar.records.filter(r => r.id !== recordId),
-            };
-            updateCarInList(updatedCar);
+            try {
+              await deleteMaintenanceRecord(recordId);
+              const updatedCar = {
+                ...selectedCar,
+                records: selectedCar.records.filter(r => r.id !== recordId),
+              };
+              updateCarInList(updatedCar);
+            } catch (err) {
+              Alert.alert('Hata', getErrorMessage(err));
+            }
           },
         },
       ]
@@ -92,14 +101,18 @@ export const useRecordManager = (
 
   const handleUpdateRecord = async (updatedRecord: MaintenanceRecord) => {
     if (!selectedCar) return;
-    await updateMaintenanceRecord(updatedRecord);
-    const updatedCar = {
-      ...selectedCar,
-      records: selectedCar.records.map(r =>
-        r.id === updatedRecord.id ? updatedRecord : r
-      ),
-    };
-    updateCarInList(updatedCar);
+    try {
+      await updateMaintenanceRecord(updatedRecord);
+      const updatedCar = {
+        ...selectedCar,
+        records: selectedCar.records.map(r =>
+          r.id === updatedRecord.id ? updatedRecord : r
+        ),
+      };
+      updateCarInList(updatedCar);
+    } catch (err) {
+      Alert.alert('Hata', getErrorMessage(err));
+    }
   };
 
   return {

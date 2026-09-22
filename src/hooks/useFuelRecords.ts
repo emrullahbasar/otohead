@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { FuelRecord, FuelAnalysis } from '../types';
 import { getFuelRecords, addFuelRecord, deleteFuelRecord } from '../services/fuelApi';
 import { computeAnalysis, filterRecords, FilterType } from '../utils/fuelUtils';
+import { getErrorMessage } from '../config/errors';
 import { FuelForm } from './useFuelForm';
 
 function generateId(): string {
@@ -36,7 +38,17 @@ export const useFuelRecords = (
     currentKm: string,
   ) => {
     if (!selectedCarId) return;
-    if (!record.pricePerLiter || !record.totalLiters || !record.currentKm) return;
+    if (!record.pricePerLiter || !record.totalLiters || !record.currentKm) {
+      Alert.alert('Eksik Bilgi', 'Litre fiyatı, alınan yakıt ve güncel kilometre zorunludur.');
+      return;
+    }
+
+    const previousKm = parseFloat(record.previousKm || '0');
+    const currentKmValue = parseFloat(record.currentKm);
+    if (record.previousKm && currentKmValue < previousKm) {
+      Alert.alert('Hatalı Kilometre', 'Güncel kilometre, önceki kilometreden küçük olamaz.');
+      return;
+    }
 
     try {
       const newRecord: FuelRecord = {
@@ -44,8 +56,8 @@ export const useFuelRecords = (
         date:          new Date().toLocaleDateString('tr-TR'),
         pricePerLiter: parseFloat(record.pricePerLiter.replace(',', '.')),
         totalLiters:   parseFloat(record.totalLiters.replace(',', '.')),
-        previousKm:    parseFloat(record.previousKm || '0'),
-        currentKm:     parseFloat(record.currentKm),
+        previousKm,
+        currentKm:     currentKmValue,
         isFull:        record.isFull,
         station:       record.station || undefined,
       };
@@ -54,6 +66,7 @@ export const useFuelRecords = (
       await loadRecordsForCar(selectedCarId);
     } catch (err) {
       console.error('Kayıt hatası:', err);
+      Alert.alert('Hata', getErrorMessage(err));
       throw err;
     }
   }, [selectedCarId, loadRecordsForCar]);

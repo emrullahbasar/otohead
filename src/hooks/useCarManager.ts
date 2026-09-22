@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Car } from '../types';
 import { loadCars, saveCar, deleteCar } from '../services/storage';
 import { fetchBrands, fetchModels } from '../services/carApi';
+import { getErrorMessage } from '../config/errors';
 
 export const useCarManager = () => {
   const [cars,        setCars]        = useState<Car[]>([]);
@@ -17,9 +19,17 @@ export const useCarManager = () => {
   const [loading,     setLoading]     = useState(false);
 
   useEffect(() => {
-    loadSavedCars();
     loadBrands();
   }, []);
+
+  // Sekmeye her dönüldüğünde araç listesini tazele (bkz. useCarSelector'daki
+  // aynı düzeltme) — marka listesi network'ten geldiği için mount'ta bir kere
+  // yeterli, tekrar tekrar istemeye gerek yok.
+  useFocusEffect(
+    useCallback(() => {
+      loadSavedCars();
+    }, [])
+  );
 
   const loadSavedCars = async () => {
     const saved = await loadCars();
@@ -61,10 +71,14 @@ export const useCarManager = () => {
       nickname: nickname || `${brand} ${model}`,
       records:  [],
     };
-    await saveCar(newCar);
-    setCars(prev => [newCar, ...prev]);
-    setBrand(''); setModel(''); setYear(''); setNickname('');
-    setShowCarForm(false);
+    try {
+      await saveCar(newCar);
+      setCars(prev => [newCar, ...prev]);
+      setBrand(''); setModel(''); setYear(''); setNickname('');
+      setShowCarForm(false);
+    } catch (err) {
+      Alert.alert('Hata', getErrorMessage(err));
+    }
   };
 
   const handleDeleteCar = (carId: string) => {
@@ -76,9 +90,13 @@ export const useCarManager = () => {
         {
           text: 'Sil', style: 'destructive',
           onPress: async () => {
-            await deleteCar(carId);
-            setCars(prev => prev.filter(c => c.id !== carId));
-            if (selectedCar?.id === carId) setSelectedCar(null);
+            try {
+              await deleteCar(carId);
+              setCars(prev => prev.filter(c => c.id !== carId));
+              if (selectedCar?.id === carId) setSelectedCar(null);
+            } catch (err) {
+              Alert.alert('Hata', getErrorMessage(err));
+            }
           },
         },
       ]
