@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Alert, StyleSheet } from 'react-native';
+import {
+  View, Text, ScrollView, Pressable, TextInput, Alert, StyleSheet,
+  Platform, KeyboardAvoidingView,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Car } from '../../types';
 import { CarCard } from './components/CarCard';
@@ -32,7 +35,10 @@ export const CarListView = ({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View style={[styles.mainHeader, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.mainHeaderText}>Araç Yönetimi</Text>
         <Text style={styles.mainHeaderSub}>
@@ -118,6 +124,6 @@ export const CarListView = ({
           </Pressable>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };

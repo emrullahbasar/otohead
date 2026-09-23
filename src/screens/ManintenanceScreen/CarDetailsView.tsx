@@ -5,6 +5,8 @@ import {
   ScrollView,
   Pressable,
   TextInput,
+  Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -64,7 +66,10 @@ export const CarDetailsView = ({
   return (
     <View style={{ flex: 1 }}>
       {/* Header — ScrollView dışında sabit kalır */}
-      <View style={[styles.container, { flex: 1 }]}>
+      <KeyboardAvoidingView
+        style={[styles.container, { flex: 1 }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
           <Pressable onPress={() => setSelectedCar(null)} hitSlop={12}>
             <Text style={styles.backButton}>← Geri</Text>
@@ -84,7 +89,6 @@ export const CarDetailsView = ({
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets={true}
         >
           {selectedCar.records.length === 0 && !showRecordForm && (
             <Text style={styles.empty}>Henüz işlem kaydı yok.</Text>
@@ -191,7 +195,7 @@ export const CarDetailsView = ({
             </Pressable>
           )}
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
 
       <DateTimePickerModal
         isVisible={showDatePicker}

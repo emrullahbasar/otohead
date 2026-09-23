@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView,
+  Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFuel } from '../../hooks/useFuel';
@@ -23,12 +24,14 @@ export default function FuelScreen() {
   } = useFuel();
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={[styles.safeArea, { paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets={true}
       >
         <View style={styles.headerBox}>
           <Text style={styles.mainTitle}>Yakıt Takip</Text>
@@ -97,7 +100,7 @@ export default function FuelScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
