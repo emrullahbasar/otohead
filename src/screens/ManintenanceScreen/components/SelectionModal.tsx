@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, Modal, ScrollView,
-  Pressable, ActivityIndicator,
+  View, Text, Modal, ScrollView, Platform,
+  Pressable, ActivityIndicator, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 import { styles } from '../styles';
 import { YEARS, MAINTENANCE_TYPES } from '../../../hooks/useMaintenance';
@@ -34,6 +34,9 @@ export const SelectionModal = ({
   brands, models,
   setBrand, setModel, setYear, setRecordType, loadModels,
 }: Props) => {
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const [otherText,      setOtherText]      = useState('');
+
   if (modalType === null) return null;
 
   const items: string[] =
@@ -42,7 +45,17 @@ export const SelectionModal = ({
     modalType === 'year'       ? YEARS  :
     MAINTENANCE_TYPES;
 
+  const closeModal = () => {
+    setModalType(null);
+    setShowOtherInput(false);
+    setOtherText('');
+  };
+
   const handleSelect = (item: string) => {
+    if (modalType === 'recordType' && item === 'Diğer') {
+      setShowOtherInput(true);
+      return;
+    }
     if (modalType === 'brand') {
       setBrand(item);
       setModel('');
@@ -54,19 +67,51 @@ export const SelectionModal = ({
     } else if (modalType === 'recordType') {
       setRecordType(item);
     }
-    setModalType(null);
+    closeModal();
+  };
+
+  const confirmOtherText = () => {
+    const trimmed = otherText.trim();
+    if (!trimmed) return;
+    setRecordType(trimmed);
+    closeModal();
   };
 
   return (
     <Modal visible transparent animationType="slide">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <Pressable
         style={styles.modalOverlay}
-        onPress={() => setModalType(null)}
+        onPress={closeModal}
       >
         <Pressable onPress={e => e.stopPropagation()}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>{MODAL_TITLES[modalType]}</Text>
-            {loading ? (
+            <Text style={styles.modalTitle}>
+              {showOtherInput ? 'İşlem Türünü Yazın' : MODAL_TITLES[modalType]}
+            </Text>
+            {showOtherInput ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Örn. Bujii Değişimi"
+                  placeholderTextColor={t.color.text.muted}
+                  value={otherText}
+                  onChangeText={setOtherText}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={confirmOtherText}
+                />
+                <Pressable
+                  style={[styles.button, { marginTop: t.spacing.md }]}
+                  onPress={confirmOtherText}
+                >
+                  <Text style={styles.buttonText}>Tamam</Text>
+                </Pressable>
+              </>
+            ) : loading ? (
               <ActivityIndicator
                 size="large"
                 color={t.color.brand.primary}
@@ -90,13 +135,14 @@ export const SelectionModal = ({
             )}
             <Pressable
               style={styles.modalCancel}
-              onPress={() => setModalType(null)}
+              onPress={closeModal}
             >
               <Text style={styles.cancelText}>İptal</Text>
             </Pressable>
           </View>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };

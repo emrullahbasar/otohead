@@ -9,9 +9,9 @@ import {
 import { getErrorMessage } from '../config/errors';
 
 export const MAINTENANCE_TYPES = [
-  'Periyodik Bakım', 'Sigorta', 'Kasko', 'Muayene',
-  'Lastik Değişimi', 'Fren Bakımı', 'Triger Seti',
-  'Akü Değişimi', 'Cam Suyu', 'Diğer',
+  'Periyodik Bakım', 'Yağ Değişimi', 'Sigorta', 'Kasko', 'Muayene',
+  'Lastik Değişimi', 'Rot Balans', 'Fren Bakımı', 'Triger Seti',
+  'Klima Bakımı', 'Akü Değişimi', 'Cam Suyu', 'Diğer',
 ];
 
 export const YEARS = Array.from({ length: 30 }, (_, i) => (2025 - i).toString());
