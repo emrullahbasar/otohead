@@ -46,6 +46,7 @@ export default {
     plugins: [
       '@react-native-community/datetimepicker',
       'expo-sqlite',
+      'expo-notifications',
       [
         'expo-image-picker',
         {

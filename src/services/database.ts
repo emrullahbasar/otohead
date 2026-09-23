@@ -81,19 +81,30 @@ export const initTables = async (): Promise<void> => {
   }
 };
 
-export const getClientId = async (): Promise<string> => {
-  const database = await getDB();
-  const row = await database.getFirstAsync<{ value: string }>(
-    `SELECT value FROM client_config WHERE key = 'clientId'`
-  );
-  if (row) return row.value;
+// Yeni kurulumda birkaç yerden aynı anda çağrılabilir; iki çağrının ikisi de
+// "kimlik yok" görüp çakışan INSERT yapmasın diye tek seferde çalıştırılır.
+let clientIdInFlight: Promise<string> | null = null;
 
-  const newId = uuidv4();
-  await database.runAsync(
-    `INSERT INTO client_config (key, value) VALUES ('clientId', ?)`,
-    [newId]
-  );
-  return newId;
+export const getClientId = (): Promise<string> => {
+  if (!clientIdInFlight) {
+    clientIdInFlight = (async () => {
+      const database = await getDB();
+      const read = () => database.getFirstAsync<{ value: string }>(
+        `SELECT value FROM client_config WHERE key = 'clientId'`
+      );
+      const existing = await read();
+      if (existing) return existing.value;
+
+      await database.runAsync(
+        `INSERT OR IGNORE INTO client_config (key, value) VALUES ('clientId', ?)`,
+        [uuidv4()]
+      );
+      const created = await read();
+      if (!created) throw new DatabaseError('Cihaz kimliği oluşturulamadı.');
+      return created.value;
+    })().finally(() => { clientIdInFlight = null; });
+  }
+  return clientIdInFlight;
 };
 
 // Apps Script'in bu clientId için verdiği kişiye özel yetkilendirme sırrı —
@@ -113,4 +124,45 @@ export const setClientSecret = async (secret: string): Promise<void> => {
     `INSERT OR REPLACE INTO client_config (key, value) VALUES ('clientSecret', ?)`,
     [secret]
   );
+};
+
+export const getConfig = async (key: string): Promise<string | null> => {
+  const database = await getDB();
+  const row = await database.getFirstAsync<{ value: string }>(
+    `SELECT value FROM client_config WHERE key = ?`,
+    [key]
+  );
+  return row?.value ?? null;
+};
+
+export const setConfig = async (key: string, value: string): Promise<void> => {
+  const database = await getDB();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO client_config (key, value) VALUES (?, ?)`,
+    [key, value]
+  );
+};
+
+// Sunucu bu clientId için yeniden kayıt vermeyi reddettiğinde (kayıt zaten var
+// ama yerel sır eşleşmiyor) cihazı kilitli bırakmamak için yeni kimlik üretir.
+export const rotateClientId = async (): Promise<string> => {
+  const database = await getDB();
+  const newId = uuidv4();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO client_config (key, value) VALUES ('clientId', ?)`,
+    [newId]
+  );
+  await database.runAsync(`DELETE FROM client_config WHERE key = 'clientSecret'`);
+  // Eski kimliğe ait önbellekler yeni kimlikte geçersizdir.
+  await database.runAsync(
+    `DELETE FROM client_config WHERE key IN ('pushTokenSent', 'lastSuggestion', 'lastEvaluation', 'dismissedSuggestion', 'dismissedEvaluation')`
+  );
+  return newId;
+};
+
+// Sunucu tarafında kayıt silinmiş/değişmişse yerelde geçersiz kalan sırrı
+// temizler — bkz. suggestionApi.ts'teki "Yetkisiz istek" kendi kendini onarma.
+export const clearClientSecret = async (): Promise<void> => {
+  const database = await getDB();
+  await database.runAsync(`DELETE FROM client_config WHERE key = 'clientSecret'`);
 };

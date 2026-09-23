@@ -2,5 +2,6 @@ export type MainTabParamList = {
   'Ana Sayfa':     undefined;
   'Yakıt':         undefined;
   'Araç Yönetimi': undefined;
-  'Araç Öneri':    undefined;
+  // tab: bildirimden gelinen alt sekme; ts: aynı sekmeye tekrar gelindiğinde de yenileme tetiklemek için.
+  'Araç Öneri':    { tab?: 'find' | 'evaluate'; ts?: number } | undefined;
 };
