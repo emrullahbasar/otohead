@@ -29,6 +29,20 @@ const MODAL_TITLES: Record<string, string> = {
   recordType: 'İşlem Türü Seç',
 };
 
+const OTHER_TITLES: Record<string, string> = {
+  brand:      'Markayı Yazın',
+  model:      'Modeli Yazın',
+  recordType: 'İşlem Türünü Yazın',
+};
+
+const OTHER_PLACEHOLDERS: Record<string, string> = {
+  brand:      'Örn. Tofaş',
+  model:      'Örn. Şahin',
+  recordType: 'Örn. Bujii Değişimi',
+};
+
+const OTHER = 'Diğer';
+
 export const SelectionModal = ({
   modalType, setModalType, loading,
   brands, models,
@@ -40,10 +54,15 @@ export const SelectionModal = ({
   if (modalType === null) return null;
 
   const items: string[] =
-    modalType === 'brand'      ? brands :
-    modalType === 'model'      ? models :
+    modalType === 'brand'      ? [...brands, OTHER] :
+    modalType === 'model'      ? [...models, OTHER] :
     modalType === 'year'       ? YEARS  :
     MAINTENANCE_TYPES;
+
+  const supportsOther = modalType === 'brand' || modalType === 'model' || modalType === 'recordType';
+  // Listede hiç modeli olmayan (elle yazılmış) marka için doğrudan yazma alanı açılır.
+  const inputVisible = supportsOther &&
+    (showOtherInput || (modalType === 'model' && !loading && models.length === 0));
 
   const closeModal = () => {
     setModalType(null);
@@ -52,7 +71,7 @@ export const SelectionModal = ({
   };
 
   const handleSelect = (item: string) => {
-    if (modalType === 'recordType' && item === 'Diğer') {
+    if (supportsOther && item === OTHER) {
       setShowOtherInput(true);
       return;
     }
@@ -73,7 +92,15 @@ export const SelectionModal = ({
   const confirmOtherText = () => {
     const trimmed = otherText.trim();
     if (!trimmed) return;
-    setRecordType(trimmed);
+    if (modalType === 'brand') {
+      setBrand(trimmed);
+      setModel('');
+      loadModels(trimmed);
+    } else if (modalType === 'model') {
+      setModel(trimmed);
+    } else {
+      setRecordType(trimmed);
+    }
     closeModal();
   };
 
@@ -90,16 +117,17 @@ export const SelectionModal = ({
         <Pressable onPress={e => e.stopPropagation()}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>
-              {showOtherInput ? 'İşlem Türünü Yazın' : MODAL_TITLES[modalType]}
+              {inputVisible ? OTHER_TITLES[modalType] : MODAL_TITLES[modalType]}
             </Text>
-            {showOtherInput ? (
+            {inputVisible ? (
               <>
                 <TextInput
                   style={styles.input}
-                  placeholder="Örn. Bujii Değişimi"
+                  placeholder={OTHER_PLACEHOLDERS[modalType]}
                   placeholderTextColor={t.color.text.muted}
                   value={otherText}
                   onChangeText={setOtherText}
+                  maxLength={40}
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={confirmOtherText}

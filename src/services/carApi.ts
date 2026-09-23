@@ -1,17 +1,11 @@
-import { API_ENDPOINTS } from '../config/api';
-import { handleApiResponse, NetworkError } from '../config/errors';
+import carsData from '../data/cars.json';
 
-export const fetchBrands = async (): Promise<string[]> => {
-  const response = await fetch(`${API_ENDPOINTS.cars}/brands`)
-    .catch(() => { throw new NetworkError(); });
+const cars = carsData as Record<string, string[]>;
 
-  return handleApiResponse(response);
-};
+// Marka/model listesi uygulamanın içinde (yaklaşık 3 KB) — sunucu veya internet
+// gerekmez, çevrimdışı da çalışır.
+export const fetchBrands = async (): Promise<string[]> =>
+  Object.keys(cars);
 
-export const fetchModels = async (brand: string): Promise<string[]> => {
-  const response = await fetch(
-    `${API_ENDPOINTS.cars}/models/${encodeURIComponent(brand)}`
-  ).catch(() => { throw new NetworkError(); });
-
-  return handleApiResponse(response);
-};
+export const fetchModels = async (brand: string): Promise<string[]> =>
+  cars[brand] ?? [];
