@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import {
+  View, Text, Pressable, StyleSheet, Platform, KeyboardAvoidingView,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSuggestion, FUEL_TYPES, GEAR_TYPES } from '../../hooks/useSuggestion';
 import { useSimpleRequest } from '../../hooks/useSimpleRequest';
@@ -50,10 +52,13 @@ export default function SuggestionsScreen() {
         ))}
       </View>
 
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         {activeTab === 'find'     && <FindTab     suggestion={suggestion} />}
         {activeTab === 'evaluate' && <EvaluateTab evaluation={evaluation} />}
-      </View>
+      </KeyboardAvoidingView>
 
       <SelectionModal
         modalType={suggestion.modalType}
