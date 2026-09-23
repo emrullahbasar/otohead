@@ -8,13 +8,13 @@ interface SuggestionForm {
   yearMax:  string;
   caseType: string[];
   fuel:     string[];
-  gear:     string;
+  gear:     string[];
   extra:    string;
 }
 
 const INITIAL_FORM: SuggestionForm = {
   budget: '', yearMin: '', yearMax: '',
-  caseType: [], fuel: [], gear: '', extra: '',
+  caseType: [], fuel: [], gear: [], extra: '',
 };
 
 // Kasa/Yakıt "Fark Etmez" seçilince boş diziye döner (SelectionModal), bu yüzden
@@ -45,9 +45,13 @@ export const useSuggestionForm = () => {
 
   const validate = (): string | null => {
     if (!form.budget.trim()) return 'Bütçe alanı zorunludur.';
+    if (!/^\d+$/.test(form.budget) || parseInt(form.budget, 10) <= 0) return 'Geçerli bir bütçe giriniz.';
     if (!form.yearMin.trim() || !form.yearMax.trim()) return 'Yıl aralığı zorunludur.';
-    if (parseInt(form.yearMin) > parseInt(form.yearMax)) return 'Minimum yıl, maksimum yıldan büyük olamaz.';
-    if (parseInt(form.yearMin) < 1990 || parseInt(form.yearMax) > new Date().getFullYear() + 1) {
+    if (!/^\d{4}$/.test(form.yearMin) || !/^\d{4}$/.test(form.yearMax)) {
+      return 'Yılları 4 haneli giriniz (örn. 2018).';
+    }
+    if (parseInt(form.yearMin, 10) > parseInt(form.yearMax, 10)) return 'Minimum yıl, maksimum yıldan büyük olamaz.';
+    if (parseInt(form.yearMin, 10) < 1990 || parseInt(form.yearMax, 10) > new Date().getFullYear() + 1) {
       return 'Geçerli bir yıl aralığı giriniz.';
     }
     if (!touched.caseType) return 'Kasa tipi seçimi zorunludur.';
@@ -69,7 +73,7 @@ export const useSuggestionForm = () => {
     yearMax:     form.yearMax,
     caseType:    form.caseType.length > 0 ? form.caseType.join(', ') : 'Belirtilmedi',
     fuel:        form.fuel.length > 0     ? form.fuel.join(', ')     : 'Belirtilmedi',
-    gear:        form.gear                                            || 'Belirtilmedi',
+    gear:        form.gear.length > 0     ? form.gear.join(', ')     : 'Belirtilmedi',
     description: form.extra                                           || 'Belirtilmedi',
   });
 

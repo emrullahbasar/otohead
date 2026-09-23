@@ -10,10 +10,11 @@ interface SelectionModalProps {
   fuelTypes:    string[];
   gearTypes:    string[];
   setFuel:      (val: string[]) => void;
-  setGear:      (val: string) => void;
+  setGear:      (val: string[]) => void;
   caseType:     string[];
   setCaseType:  (val: string[]) => void;
   fuel:         string[];
+  gear:         string[];
 }
 
 export const SelectionModal = ({
@@ -21,8 +22,10 @@ export const SelectionModal = ({
   fuelTypes, gearTypes,
   setFuel, setGear,
   caseType, setCaseType,
-  fuel,
+  fuel, gear,
 }: SelectionModalProps) => {
+
+  if (modalType === null) return null;
 
   const toggleCaseType = (type: string) => {
     if (type === 'Fark Etmez') { setCaseType([]); return; }
@@ -36,6 +39,13 @@ export const SelectionModal = ({
     fuel.includes(type)
       ? setFuel(fuel.filter(t => t !== type))
       : setFuel([...fuel, type]);
+  };
+
+  const toggleGear = (type: string) => {
+    if (type === 'Fark Etmez') { setGear([]); return; }
+    gear.includes(type)
+      ? setGear(gear.filter(t => t !== type))
+      : setGear([...gear, type]);
   };
 
   const renderCheckList = (
@@ -109,31 +119,14 @@ export const SelectionModal = ({
     );
   }
 
-  // Vites modal — dışarıya basınca kapat
-  return (
-    <Modal visible={modalType !== null} transparent animationType="slide">
-      <Pressable style={styles.modalOverlay} onPress={() => setModalType(null)}>
-        <Pressable onPress={e => e.stopPropagation()}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Vites Tipi</Text>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              {gearTypes.map(item => (
-                <Pressable
-                  key={item}
-                  style={styles.modalItem}
-                  onPress={() => { setGear(item); setModalType(null); }}
-                >
-                  <Text style={styles.modalItemText}>{item}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <Pressable style={styles.modalCancel} onPress={() => setModalType(null)}>
-              <Text style={styles.cancelText}>İptal</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+  // Vites modal
+  return renderCheckList(
+    [...gearTypes.filter(t => t !== 'Fark Etmez'), 'Fark Etmez'],
+    gear,
+    toggleGear,
+    () => setModalType(null),
+    'Vites Tipi',
+    'Birden fazla seçebilirsiniz',
   );
 };
 

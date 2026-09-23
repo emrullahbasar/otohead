@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
 } from 'react-native';
@@ -14,6 +14,14 @@ interface Props {
 }
 
 export default function FindTab({ suggestion }: Props) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Doğrulama/gönderim hatası sayfanın üstünde gösterilir; kullanıcı aşağıdaki
+  // düğmeye basmış olabilir, hatayı görsün diye yukarı kaydır.
+  useEffect(() => {
+    if (suggestion.error) scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [suggestion.error]);
+
   if (suggestion.suggestion?.status === 'HAZIR' || suggestion.suggestion?.status === 'GÖRÜLDÜ') {
     return (
       <ScrollView contentContainerStyle={{ padding: t.spacing.base }}>
@@ -62,6 +70,11 @@ export default function FindTab({ suggestion }: Props) {
             : <Text style={styles.buttonText}>Durumu Kontrol Et</Text>
           }
         </Pressable>
+        {suggestion.statusError !== '' && (
+          <Text style={[styles.errorText, { textAlign: 'center', marginTop: t.spacing.md }]}>
+            ⚠️ {suggestion.statusError}
+          </Text>
+        )}
       </View>
     );
   }
@@ -76,41 +89,56 @@ export default function FindTab({ suggestion }: Props) {
         <Text style={[styles.headerSub, { textAlign: 'center', lineHeight: 22 }]}>
           Uzman ekibimiz en kısa sürede araç önerinizi hazırlayacaktır.
         </Text>
+        <Pressable
+          style={[styles.button, { marginTop: t.spacing.xl }, suggestion.checkingStatus && styles.buttonDisabled]}
+          onPress={suggestion.checkStatus}
+          disabled={suggestion.checkingStatus}
+        >
+          {suggestion.checkingStatus
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.buttonText}>Durumu Kontrol Et</Text>
+          }
+        </Pressable>
       </View>
     );
   }
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
-      automaticallyAdjustKeyboardInsets={true}
     >
       {suggestion.error !== '' && (
         <View style={[styles.errorBox, { margin: t.spacing.base }]}>
           <Text style={styles.errorText}>⚠️ {suggestion.error}</Text>
         </View>
       )}
-      {suggestion.checkingStatus ? (
-        <View style={{ alignItems: 'center', padding: t.spacing.xl }}>
-          <ActivityIndicator color={t.color.brand.primary} />
+      {suggestion.checkingStatus && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: t.spacing.md }}>
+          <ActivityIndicator size="small" color={t.color.brand.primary} />
+          <Text style={{ ...t.typography.caption, color: t.color.text.muted, marginLeft: t.spacing.sm }}>
+            Önceki isteğiniz kontrol ediliyor...
+          </Text>
         </View>
-      ) : (
-        <SuggestionForm
-          budget={suggestion.budget}       setBudget={suggestion.setBudget}
-          yearMin={suggestion.yearMin}     setYearMin={suggestion.setYearMin}
-          yearMax={suggestion.yearMax}     setYearMax={suggestion.setYearMax}
-          caseType={suggestion.caseType}   setCaseType={suggestion.setCaseType}
-          fuel={suggestion.fuel}
-          gear={suggestion.gear}
-          extra={suggestion.extra}         setExtra={suggestion.setExtra}
-          touched={suggestion.touched}
-          loading={suggestion.loading}
-          setModalType={suggestion.setModalType}
-          handleSearch={suggestion.handleSearch}
-        />
       )}
+      <SuggestionForm
+        budget={suggestion.budget}       setBudget={suggestion.setBudget}
+        yearMin={suggestion.yearMin}     setYearMin={suggestion.setYearMin}
+        yearMax={suggestion.yearMax}     setYearMax={suggestion.setYearMax}
+        caseType={suggestion.caseType}   setCaseType={suggestion.setCaseType}
+        fuel={suggestion.fuel}
+        gear={suggestion.gear}
+        extra={suggestion.extra}         setExtra={suggestion.setExtra}
+        touched={suggestion.touched}
+        loading={suggestion.loading}
+        setModalType={suggestion.setModalType}
+        handleSearch={suggestion.handleSearch}
+        onExtraFocus={() => {
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+        }}
+      />
     </ScrollView>
   );
 }

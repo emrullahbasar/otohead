@@ -11,12 +11,13 @@ interface Props {
   caseType:    string[];
   setCaseType: (val: string[]) => void;
   fuel:        string[];
-  gear:        string;
+  gear:        string[];
   extra:       string; setExtra:    (val: string) => void;
   touched:     { caseType: boolean; fuel: boolean; gear: boolean };
   loading:     boolean;
   setModalType:(val: 'fuel' | 'gear' | 'caseType' | null) => void;
   handleSearch:() => void;
+  onExtraFocus?: () => void;
 }
 
 const formatNumber = (value: string): string => {
@@ -36,12 +37,6 @@ const getLabel = (selected: string[], isTouched: boolean): string => {
   return selected.join(', ');
 };
 
-const getGearLabel = (gear: string): string => {
-  if (!gear || gear === '') return 'Seçin';
-  if (gear === 'Fark Etmez') return 'Fark Etmez';
-  return gear;
-};
-
 export const SuggestionForm = ({
   budget, setBudget,
   yearMin, setYearMin,
@@ -51,6 +46,7 @@ export const SuggestionForm = ({
   extra, setExtra,
   touched,
   loading, setModalType, handleSearch,
+  onExtraFocus,
 }: Props) => {
   const yearMinRef = useRef<TextInput>(null);
   const yearMaxRef = useRef<TextInput>(null);
@@ -64,7 +60,7 @@ export const SuggestionForm = ({
         placeholder="örn. 500.000"
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={formatNumber(budget)}
-        onChangeText={text => setBudget(text.replace(/\D/g, ''))}
+        onChangeText={text => setBudget(text.replace(/\D/g, '').slice(0, 12))}
         keyboardType="numeric"
         returnKeyType="next"
         onSubmitEditing={() => yearMinRef.current?.focus()}
@@ -80,7 +76,8 @@ export const SuggestionForm = ({
           placeholder="Min (2018)"
           placeholderTextColor={styles.selectorPlaceholder.color}
           value={yearMin}
-          onChangeText={setYearMin}
+          onChangeText={text => setYearMin(text.replace(/\D/g, ''))}
+          maxLength={4}
           keyboardType="numeric"
           returnKeyType="next"
           onSubmitEditing={() => yearMaxRef.current?.focus()}
@@ -93,7 +90,8 @@ export const SuggestionForm = ({
           placeholder="Max (2024)"
           placeholderTextColor={styles.selectorPlaceholder.color}
           value={yearMax}
-          onChangeText={setYearMax}
+          onChangeText={text => setYearMax(text.replace(/\D/g, ''))}
+          maxLength={4}
           keyboardType="numeric"
           returnKeyType="next"
           onSubmitEditing={() => extraRef.current?.focus()}
@@ -128,13 +126,15 @@ export const SuggestionForm = ({
         <Text style={styles.selectorArrow}>›</Text>
       </Pressable>
 
-      <Text style={styles.label}>Vites Tipi</Text>
+      <Text style={styles.label}>
+        Vites Tipi{gear.length > 0 ? ` (${gear.length} seçildi)` : ''}
+      </Text>
       <Pressable
         style={styles.selector}
         onPress={() => !loading && setModalType('gear')}
       >
-        <Text style={gear ? styles.selectorText : styles.selectorPlaceholder}>
-          {getGearLabel(gear)}
+        <Text style={touched.gear ? styles.selectorText : styles.selectorPlaceholder} numberOfLines={1}>
+          {getLabel(gear, touched.gear)}
         </Text>
         <Text style={styles.selectorArrow}>›</Text>
       </Pressable>
@@ -147,6 +147,8 @@ export const SuggestionForm = ({
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={extra}
         onChangeText={setExtra}
+        maxLength={1000}
+        onFocus={onExtraFocus}
         multiline
         numberOfLines={4}
         textAlignVertical="top"

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useSuggestionForm } from './useSuggestionForm';
 import { useSuggestionStatus } from './useSuggestionStatus';
-import { submitSuggestion } from '../services/suggestionApi';
+import { submitSuggestion, syncPushToken } from '../services/suggestionApi';
 
 export const FUEL_TYPES  = ['Benzin', 'Dizel', 'LPG', 'Hybrid', 'Elektrik', 'Fark Etmez'];
 export const GEAR_TYPES  = ['Manuel', 'Otomatik', 'Fark Etmez'];
@@ -27,13 +27,16 @@ export const useSuggestion = () => {
       const payload = formHook.buildPayload(statusHook.clientId);
       await submitSuggestion(payload);
       statusHook.setSubmitted(true);
+      syncPushToken();
       formHook.resetForm();
       statusHook.checkedRef.current = false;
-      const { checkSuggestion } = await import('../services/suggestionApi');
-      const result = await checkSuggestion(statusHook.clientId);
-      statusHook.setSuggestion(result);
+      // Gönderim başarılı; durum sorgusu arka planda çalışır (eski/yavaş bir
+      // sorgu varsa onu geçersiz kılar), başarısız olursa hata gösterilmez.
+      statusHook.forceCheck();
     } catch (err: any) {
       setError(err?.message || 'İstek gönderilemedi.');
+      // Sunucuda zaten bekleyen bir istek varsa ekran gerçek durumu göstersin.
+      if (String(err?.message).includes('Zaten')) statusHook.forceCheck();
     } finally {
       setLoading(false);
     }
@@ -46,7 +49,7 @@ export const useSuggestion = () => {
     yearMax:  formHook.form.yearMax,  setYearMax:  (v: string)   => formHook.updateField('yearMax', v),
     caseType: formHook.form.caseType, setCaseType: (v: string[]) => formHook.updateField('caseType', v),
     fuel:     formHook.form.fuel,     setFuel:     (v: string[]) => formHook.updateField('fuel', v),
-    gear:     formHook.form.gear,     setGear:     (v: string)   => formHook.updateField('gear', v),
+    gear:     formHook.form.gear,     setGear:     (v: string[]) => formHook.updateField('gear', v),
     extra:    formHook.form.extra,    setExtra:    (v: string)   => formHook.updateField('extra', v),
     touched:      formHook.touched,
     modalType:    formHook.modalType,
@@ -55,8 +58,10 @@ export const useSuggestion = () => {
     clientId:      statusHook.clientId,
     suggestion:    statusHook.suggestion,
     checkingStatus: statusHook.checkingStatus,
+    statusError:   statusHook.statusError,
     submitted:     statusHook.submitted,
     checkStatus:   statusHook.checkStatus,
+    forceCheck:    statusHook.forceCheck,
     checkOnMount:  statusHook.checkOnMount,
     resetSubmitted: statusHook.resetStatus,
     // Search

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
 } from 'react-native';
@@ -14,6 +14,12 @@ interface Props {
 }
 
 export default function EvaluateTab({ evaluation }: Props) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (evaluation.error) scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [evaluation.error]);
+
   if (evaluation.result?.status === 'HAZIR' || evaluation.result?.status === 'GÖRÜLDÜ') {
     return (
       <ScrollView contentContainerStyle={{ padding: t.spacing.base }}>
@@ -59,6 +65,11 @@ export default function EvaluateTab({ evaluation }: Props) {
             : <Text style={styles.buttonText}>Durumu Kontrol Et</Text>
           }
         </Pressable>
+        {evaluation.statusError !== '' && (
+          <Text style={[styles.errorText, { textAlign: 'center', marginTop: t.spacing.md }]}>
+            ⚠️ {evaluation.statusError}
+          </Text>
+        )}
       </View>
     );
   }
@@ -73,16 +84,26 @@ export default function EvaluateTab({ evaluation }: Props) {
         <Text style={[styles.headerSub, { textAlign: 'center', lineHeight: 22 }]}>
           Uzman ekibimiz en kısa sürede yanıt verecektir.
         </Text>
+        <Pressable
+          style={[styles.button, { marginTop: t.spacing.xl }, evaluation.checkingStatus && styles.buttonDisabled]}
+          onPress={evaluation.checkStatus}
+          disabled={evaluation.checkingStatus}
+        >
+          {evaluation.checkingStatus
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.buttonText}>Durumu Kontrol Et</Text>
+          }
+        </Pressable>
       </View>
     );
   }
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
-      automaticallyAdjustKeyboardInsets={true}
     >
       <View style={{ padding: t.spacing.base, paddingBottom: 0 }}>
         <Text style={styles.headerSub}>
@@ -101,6 +122,9 @@ export default function EvaluateTab({ evaluation }: Props) {
         buttonText="🔎 Değerlendirme İste"
         ilanNoLabel="İlan Numarası"
         messageLabel="Değerlendirme İsteğiniz"
+        onMessageFocus={() => {
+          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+        }}
       />
     </ScrollView>
   );

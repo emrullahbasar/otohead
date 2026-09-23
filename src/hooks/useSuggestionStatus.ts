@@ -1,24 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
-import { getClientId } from '../services/database';
+import { getClientId, getConfig, setConfig } from '../services/database';
 import {
   checkSuggestion,
   markAsSeen,
+  syncPushToken,
   SuggestionResult,
 } from '../services/suggestionApi';
 
-const sendReadyNotification = async () => {
-  try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '🚗 Öneriniz Hazır!',
-        body:  'Araç öneriniz hazırlandı. Görmek için uygulamayı açın.',
-      },
-      trigger: null,
-    });
-  } catch {
-    // sessizce geç
-  }
+const CACHE_KEY = 'lastSuggestion';
+const DISMISSED_KEY = 'dismissedSuggestion';
+
+const NO_SUGGESTION: SuggestionResult = {
+  status: 'YOK', recommendation: null, requestId: null, budget: null,
+  yearMin: null, yearMax: null, fuel: null, caseType: null, createdAt: null,
+};
+
+// Son bilinen durum yerelde saklanır: sekme açılırken sunucu cevabını beklemeden
+// hemen gösterilir, arkadan tazelenir.
+const persist = (result: SuggestionResult) => {
+  setConfig(CACHE_KEY, result.status === 'YOK' ? '' : JSON.stringify(result)).catch(() => {});
 };
 
 export const useSuggestionStatus = () => {
@@ -26,55 +26,102 @@ export const useSuggestionStatus = () => {
   const [suggestion,     setSuggestion]     = useState<SuggestionResult | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [submitted,      setSubmitted]      = useState(false);
-  const checkedRef = useRef(false);
+  const [statusError,    setStatusError]    = useState('');
+  const checkedRef    = useRef(false);
+  const seqRef        = useRef(0);      // yalnızca en son başlatılan sorgunun sonucu uygulanır
+  const inFlightRef   = useRef(false);
+  const suggestionRef = useRef<SuggestionResult | null>(null);
+  suggestionRef.current = suggestion;
 
   useEffect(() => {
     getClientId().then(setClientId).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    Notifications.getExpoPushTokenAsync({
-      projectId: 'ccd47d7f-a085-4f9c-8beb-e7045ec2c347',
+    getConfig(CACHE_KEY).then(raw => {
+      if (!raw) return;
+      try {
+        const cached = JSON.parse(raw) as SuggestionResult;
+        setSuggestion(prev => prev ?? cached);
+      } catch {
+        // bozuk önbelleği yok say
+      }
     }).catch(() => {});
   }, []);
 
-  const checkStatus = useCallback(async () => {
-    if (!clientId || checkingStatus) return;
+  // Kullanıcı "Yeni Öneri İste" dediği eski cevap, sunucu son satırı hep
+  // döndürdüğü için uygulama her açıldığında geri gelmesin.
+  const applyDismissed = async (result: SuggestionResult): Promise<SuggestionResult> => {
+    if (result.status !== 'GÖRÜLDÜ' && result.status !== 'HAZIR') return result;
+    const dismissed = await getConfig(DISMISSED_KEY).catch(() => null);
+    return dismissed && result.requestId === dismissed ? NO_SUGGESTION : result;
+  };
+
+  const runCheck = useCallback(async (force: boolean) => {
+    if (!clientId) return;
+    if (inFlightRef.current && !force) return;
+    inFlightRef.current = true;
+    const seq = ++seqRef.current;
     setCheckingStatus(true);
+    setStatusError('');
     try {
-      const result = await checkSuggestion(clientId);
+      const raw = await checkSuggestion(clientId);
+      if (seq !== seqRef.current) return;
+      const result = await applyDismissed(raw);
+      if (seq !== seqRef.current) return;
+
       setSuggestion(result);
+      persist(result);
+      // Kullanıcı cevabı beklerken bildirim izni sonradan verilmiş olabilir.
+      if (result.status === 'BEKLİYOR') syncPushToken();
       if (result.status === 'HAZIR') {
-        await sendReadyNotification();
         await markAsSeen(clientId);
-        setSuggestion(prev => prev ? { ...prev, status: 'GÖRÜLDÜ' } : prev);
+        if (seq === seqRef.current) {
+          const seen = { ...result, status: 'GÖRÜLDÜ' as const };
+          setSuggestion(seen);
+          persist(seen);
+        }
       }
-    } catch {
-      // sessizce geç
+    } catch (err) {
+      if (seq === seqRef.current) {
+        setStatusError(err instanceof Error ? err.message : 'Durum kontrol edilemedi.');
+      }
     } finally {
-      setCheckingStatus(false);
+      if (seq === seqRef.current) {
+        inFlightRef.current = false;
+        setCheckingStatus(false);
+      }
     }
-  }, [clientId, checkingStatus]);
+  }, [clientId]);
+
+  // onPress gibi olay işleyicilerine doğrudan verilebilsin diye argümansız.
+  const checkStatus = useCallback(() => runCheck(false), [runCheck]);
+  // Devam eden (eski) sorguyu geçersiz kılıp yenisini başlatır — gönderimden sonra kullanılır.
+  const forceCheck  = useCallback(() => runCheck(true),  [runCheck]);
 
   const checkOnMount = useCallback(async () => {
     if (checkedRef.current || !clientId) return;
     checkedRef.current = true;
-    await checkStatus();
-  }, [clientId, checkStatus]);
+    await runCheck(false);
+  }, [clientId, runCheck]);
 
   const resetStatus = useCallback(() => {
+    const id = suggestionRef.current?.requestId;
+    if (id) setConfig(DISMISSED_KEY, id).catch(() => {});
+    seqRef.current++;
+    inFlightRef.current = false;
+    setCheckingStatus(false);
+    setStatusError('');
     setSubmitted(false);
     setSuggestion(null);
+    persist(NO_SUGGESTION);
     checkedRef.current = false;
   }, []);
 
   return {
     clientId,
     suggestion, setSuggestion,
-    checkingStatus,
+    checkingStatus, statusError,
     submitted, setSubmitted,
     checkedRef,
-    checkStatus,
+    checkStatus, forceCheck,
     checkOnMount,
     resetStatus,
   };

@@ -16,6 +16,7 @@ interface Props {
   buttonText:   string;
   ilanNoLabel:  string;
   messageLabel: string;
+  onMessageFocus?: () => void;
 }
 
 export const SimpleRequestForm = ({
@@ -27,6 +28,7 @@ export const SimpleRequestForm = ({
   buttonText,
   ilanNoLabel,
   messageLabel,
+  onMessageFocus,
 }: Props) => {
   const messageRef = useRef<TextInput>(null);
 
@@ -45,6 +47,7 @@ export const SimpleRequestForm = ({
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={ilanNo}
         onChangeText={setIlanNo}
+        maxLength={20}
         keyboardType="numeric"
         returnKeyType="next"
         onSubmitEditing={() => messageRef.current?.focus()}
@@ -60,6 +63,8 @@ export const SimpleRequestForm = ({
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={message}
         onChangeText={setMessage}
+        maxLength={1000}
+        onFocus={onMessageFocus}
         multiline
         numberOfLines={6}
         textAlignVertical="top"
