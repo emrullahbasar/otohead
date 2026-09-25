@@ -14,9 +14,11 @@ interface Props {
   record: MaintenanceRecord;
   onDelete: (id: string) => void;
   onPress: (record: MaintenanceRecord) => void;
+  // Hedef km - aracın son bilinen km'si. Yalnızca o türün en son kaydı için verilir.
+  remainingKm?: number;
 }
 
-export const RecordCard = ({ record, onDelete, onPress }: Props) => {
+export const RecordCard = ({ record, onDelete, onPress, remainingKm }: Props) => {
   return (
     <Swipeable
       renderRightActions={() => (
@@ -37,6 +39,14 @@ export const RecordCard = ({ record, onDelete, onPress }: Props) => {
         <Text style={styles.recordDetail}>🚗 {formatKm(record.km)} km</Text>
         {record.nextDate
           ? <Text style={styles.recordDetail}>📆 Sonraki: {record.nextDate}{record.nextKm ? ` / ${formatKm(record.nextKm)} km` : ''}</Text>
+          : null
+        }
+        {remainingKm !== undefined
+          ? remainingKm <= 0
+            ? <Text style={[styles.recordDetail, styles.kmDue]}>🚨 Hedef km'ye ulaşıldı / geçildi</Text>
+            : <Text style={[styles.recordDetail, remainingKm <= 2000 && styles.kmSoon]}>
+                🔔 Hedefe kalan: {remainingKm.toLocaleString('tr-TR')} km
+              </Text>
           : null
         }
         {record.price

@@ -146,6 +146,15 @@ export const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 20,
   },
+  // Hedef km'ye kalan mesafe satırı (RecordCard)
+  kmSoon: {
+    color: t.color.warning.default,
+    fontWeight: '600',
+  },
+  kmDue: {
+    color: t.color.danger.default,
+    fontWeight: '700',
+  },
 
   // Delete
   deleteAction: {
@@ -206,6 +215,12 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     backgroundColor: t.color.bg.base,
     color: t.color.text.primary,
+  },
+  fieldHint: {
+    ...t.typography.caption,
+    color: t.color.text.muted,
+    marginBottom: t.spacing.sm,
+    marginHorizontal: 2,
   },
 
   // Buttons

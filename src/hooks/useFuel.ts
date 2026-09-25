@@ -24,11 +24,12 @@ export const useFuel = () => {
   }, [carSelector.selectedCarId]);
 
   const handleCalculateAndSave = async () => {
-    await fuelRecords.handleCalculateAndSave(
+    // Eksik/hatalı girişte form silinmesin; yalnızca kayıt başarılıysa sıfırla.
+    const saved = await fuelRecords.handleCalculateAndSave(
       fuelForm.record,
       fuelForm.record.currentKm,
     );
-    fuelForm.resetForm(fuelForm.record.currentKm);
+    if (saved) fuelForm.resetForm(fuelForm.record.currentKm);
   };
 
   return {

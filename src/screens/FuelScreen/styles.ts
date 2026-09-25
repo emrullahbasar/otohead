@@ -148,6 +148,12 @@ export const styles = StyleSheet.create({
     borderColor: t.color.brand.secondary,
     backgroundColor: t.color.brand.pale,
   },
+  firstRecordNote: {
+    ...t.typography.caption,
+    color: t.color.text.muted,
+    marginTop: -t.spacing.xs,
+    marginBottom: t.spacing.sm,
+  },
 
   // Full Toggle
   fullToggle: {

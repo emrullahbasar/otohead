@@ -94,36 +94,27 @@ export async function scheduleDateReminder(
 }
 
 // ─────────────────────────────────────────
-// 3. Km bazlı anlık bildirim
-// ─────────────────────────────────────────
-export async function scheduleMaintenanceReminder(
-  carName: string,
-  maintenanceType: string,
-  targetKm: number,
-  currentKm: number,
-): Promise<void> {
-  const remaining = targetKm - currentKm;
-  const thresholds = [2000, 1000, 500];
-
-  for (const threshold of thresholds) {
-    if (remaining <= threshold) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🔧 Bakım Hatırlatıcı',
-          body: `${carName} - ${maintenanceType} için yaklaşık ${threshold} km kaldı!`,
-        },
-        trigger: null,
-      });
-    }
-  }
-}
-
-// ─────────────────────────────────────────
 // 4. ANA FONKSİYON — Akıllı otomatik hesap
 // ─────────────────────────────────────────
 export interface SmartReminderResult {
   nextDate?: string;   // Forma otomatik doldurulacak
   nextKm?: string;     // Forma otomatik doldurulacak
+}
+
+// Km'ye bağlı bakım türlerinin varsayılan aralıkları (hangisi önce gelirse: km veya yıl).
+// Formdaki açıklama metinleri de bu tabloyu kullanır.
+export const KM_INTERVALS: Record<string, { km: number; years: number }> = {
+  'Periyodik Bakım': { km: 10000, years: 1 },
+  'Lastik Değişimi': { km: 40000, years: 2 },
+  'Triger Seti':     { km: 60000, years: 4 },
+  'Fren Bakımı':     { km: 30000, years: 2 },
+};
+
+// Kullanıcı formda kendi sonraki tarih/km değerini girdiyse hatırlatıcılar onu kullanır;
+// boşsa tür başına varsayılan aralık hesaplanır.
+export interface SmartReminderOverrides {
+  nextDate?: string;   // TR format (gg.aa.yyyy)
+  nextKm?: string;
 }
 
 export async function scheduleSmartReminders(
@@ -132,19 +123,25 @@ export async function scheduleSmartReminders(
   recordDate: string,       // İşlem tarihi (TR format)
   recordKm: string,         // İşlem anındaki km
   isTicari: boolean = false,
+  overrides: SmartReminderOverrides = {},
 ): Promise<SmartReminderResult> {
 
   const baseDate = parseTRDate(recordDate) || new Date();
   const baseKm = parseInt(recordKm) || 0;
   const result: SmartReminderResult = {};
 
+  const userKm = parseInt(overrides.nextKm || '', 10);
+  const pickKm = (defaultAdd: number): number =>
+    userKm > baseKm ? userKm : baseKm + defaultAdd;
+  const pickDate = (auto: Date): string =>
+    overrides.nextDate && parseTRDate(overrides.nextDate) ? overrides.nextDate : toTRDate(auto);
+
   switch (recordType) {
 
     // ── Muayene ──────────────────────────────
     case 'Muayene': {
       const years = isTicari ? 1 : 2;
-      const nextDate = addYears(baseDate, years);
-      const nextDateStr = toTRDate(nextDate);
+      const nextDateStr = pickDate(addYears(baseDate, years));
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Muayene', nextDateStr, 30);
@@ -154,8 +151,7 @@ export async function scheduleSmartReminders(
 
     // ── Sigorta ──────────────────────────────
     case 'Sigorta': {
-      const nextDate = addYears(baseDate, 1);
-      const nextDateStr = toTRDate(nextDate);
+      const nextDateStr = pickDate(addYears(baseDate, 1));
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Sigorta', nextDateStr, 30);
@@ -165,8 +161,7 @@ export async function scheduleSmartReminders(
 
     // ── Kasko ─────────────────────────────────
     case 'Kasko': {
-      const nextDate = addYears(baseDate, 1);
-      const nextDateStr = toTRDate(nextDate);
+      const nextDateStr = pickDate(addYears(baseDate, 1));
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Kasko', nextDateStr, 30);
@@ -177,64 +172,57 @@ export async function scheduleSmartReminders(
     // ── Periyodik Bakım ───────────────────────
     // Hangisi önce gelirse: +10.000 km veya +1 yıl
     case 'Periyodik Bakım': {
-      const nextKm = baseKm + 10000;
-      const nextDate = addYears(baseDate, 1);
-      const nextDateStr = toTRDate(nextDate);
+      const iv = KM_INTERVALS['Periyodik Bakım'];
+      const nextKm = pickKm(iv.km);
+      const nextDateStr = pickDate(addYears(baseDate, iv.years));
       result.nextKm = String(nextKm);
       result.nextDate = nextDateStr;
 
       // Tarih bazlı: 1 ay ve 1 hafta önce
       await scheduleDateReminder(carName, 'Periyodik Bakım', nextDateStr, 30);
       await scheduleDateReminder(carName, 'Periyodik Bakım', nextDateStr, 7);
-
-      // Km bazlı: 2000 km kala anlık bildirim
-      await scheduleMaintenanceReminder(carName, 'Periyodik Bakım', nextKm, baseKm);
       break;
     }
 
     // ── Lastik Değişimi ───────────────────────
     case 'Lastik Değişimi': {
-      const nextKm = baseKm + 40000;
-      const nextDate = addYears(baseDate, 2);
-      const nextDateStr = toTRDate(nextDate);
+      const iv = KM_INTERVALS['Lastik Değişimi'];
+      const nextKm = pickKm(iv.km);
+      const nextDateStr = pickDate(addYears(baseDate, iv.years));
       result.nextKm = String(nextKm);
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Lastik Değişimi', nextDateStr, 30);
-      await scheduleMaintenanceReminder(carName, 'Lastik Değişimi', nextKm, baseKm);
       break;
     }
 
     // ── Triger Seti ───────────────────────────
     case 'Triger Seti': {
-      const nextKm = baseKm + 60000;
-      const nextDate = addYears(baseDate, 4);
-      const nextDateStr = toTRDate(nextDate);
+      const iv = KM_INTERVALS['Triger Seti'];
+      const nextKm = pickKm(iv.km);
+      const nextDateStr = pickDate(addYears(baseDate, iv.years));
       result.nextKm = String(nextKm);
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Triger Seti', nextDateStr, 30);
-      await scheduleMaintenanceReminder(carName, 'Triger Seti', nextKm, baseKm);
       break;
     }
 
     // ── Fren Bakımı ───────────────────────────
     case 'Fren Bakımı': {
-      const nextKm = baseKm + 30000;
-      const nextDate = addYears(baseDate, 2);
-      const nextDateStr = toTRDate(nextDate);
+      const iv = KM_INTERVALS['Fren Bakımı'];
+      const nextKm = pickKm(iv.km);
+      const nextDateStr = pickDate(addYears(baseDate, iv.years));
       result.nextKm = String(nextKm);
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Fren Bakımı', nextDateStr, 30);
-      await scheduleMaintenanceReminder(carName, 'Fren Bakımı', nextKm, baseKm);
       break;
     }
 
     // ── Akü Değişimi ──────────────────────────
     case 'Akü Değişimi': {
-      const nextDate = addYears(baseDate, 3);
-      const nextDateStr = toTRDate(nextDate);
+      const nextDateStr = pickDate(addYears(baseDate, 3));
       result.nextDate = nextDateStr;
 
       await scheduleDateReminder(carName, 'Akü Değişimi', nextDateStr, 30);

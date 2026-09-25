@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -13,6 +14,8 @@ import DateTimePickerModal from "react-native-modal-datetime-picker";
 import { Car, MaintenanceRecord } from "../../types";
 import { styles } from "./styles";
 import { RecordCard } from "./components/RecordCard";
+import { KM_INTERVALS } from "../../notifications";
+import { getLatestKm, LatestKm } from "../../services/kmAlerts";
 import {
   formatNumber,
   parseNumber,
@@ -55,6 +58,33 @@ export const CarDetailsView = ({
   const [showDatePicker,     setShowDatePicker]     = useState(false);
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
 
+  // Aynı carId'ye ait yakıt + bakım kayıtlarındaki en yüksek km
+  // Yakıt sekmesinden dönünce de güncellensin diye sekme odağına her girişte yenilenir.
+  const [latestKm, setLatestKm] = useState<LatestKm | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getLatestKm(selectedCar.id)
+        .then(v => { if (!cancelled) setLatestKm(v); })
+        .catch(() => { if (!cancelled) setLatestKm(null); });
+      return () => { cancelled = true; };
+    }, [selectedCar.id, selectedCar.records]),
+  );
+
+  // Her türün EN SON kaydı için hedef km'ye kalan mesafe (eski kayıtlarda gösterilmez).
+  const remainingById = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!latestKm) return map;
+    const seenTypes = new Set<string>();
+    for (const r of selectedCar.records) {          // en yeniden eskiye sıralı
+      if (seenTypes.has(r.type)) continue;
+      seenTypes.add(r.type);
+      const next = parseInt(r.nextKm || '', 10);
+      if (next > 0) map[r.id] = next - latestKm.km;
+    }
+    return map;
+  }, [selectedCar.records, latestKm]);
+
   const kmRef     = useRef<TextInput>(null);
   const nextKmRef = useRef<TextInput>(null);
   const noteRef   = useRef<TextInput>(null);
@@ -62,6 +92,8 @@ export const CarDetailsView = ({
 
   const isDateType  = ["Muayene", "Sigorta", "Kasko"].includes(recordType);
   const isPeriyodik = recordType === "Periyodik Bakım";
+  const interval    = KM_INTERVALS[recordType];
+  const kmNow       = parseInt(recordKm, 10) || 0;
 
   return (
     <View style={{ flex: 1 }}>
@@ -81,6 +113,11 @@ export const CarDetailsView = ({
             <Text style={styles.headerCarSub}>
               {selectedCar.brand} {selectedCar.model} • {selectedCar.year}
             </Text>
+            {latestKm && (
+              <Text style={styles.headerCarSub}>
+                Son bilinen km: {latestKm.km.toLocaleString('tr-TR')} km · {latestKm.source} kaydı ({latestKm.date})
+              </Text>
+            )}
           </View>
         </View>
 
@@ -100,6 +137,7 @@ export const CarDetailsView = ({
               record={record}
               onPress={openDetail}
               onDelete={handleDeleteRecord}
+              remainingKm={remainingById[record.id]}
             />
           ))}
 
@@ -135,18 +173,37 @@ export const CarDetailsView = ({
               />
 
               {isPeriyodik && (
-                <TextInput
-                  ref={nextKmRef}
-                  style={styles.input}
-                  placeholder="Sonraki Bakım Km (İsteğe bağlı)"
-                  placeholderTextColor="#52525B"
-                  value={formatNumber(recordNextKm)}
-                  onChangeText={t => setRecordNextKm(parseNumber(t))}
-                  keyboardType="numeric"
-                  returnKeyType="next"
-                  onSubmitEditing={() => noteRef.current?.focus()}
-                  blurOnSubmit={false}
-                />
+                <>
+                  <TextInput
+                    ref={nextKmRef}
+                    style={[styles.input, !recordNextKm && { marginBottom: 2 }]}
+                    placeholder="Sonraki Bakım Km (İsteğe bağlı)"
+                    placeholderTextColor="#52525B"
+                    value={formatNumber(recordNextKm)}
+                    onChangeText={t => setRecordNextKm(parseNumber(t))}
+                    keyboardType="numeric"
+                    returnKeyType="next"
+                    onSubmitEditing={() => noteRef.current?.focus()}
+                    blurOnSubmit={false}
+                  />
+                  {!recordNextKm && interval && (
+                    <Text style={styles.fieldHint}>
+                      {kmNow > 0
+                        ? `Boş bırakırsan ${formatNumber(String(kmNow + interval.km))} km olarak ayarlanır (işlem km'sine +${formatNumber(String(interval.km))} km). Ayrıca ${interval.years} yıl sonrası için tarih hatırlatıcısı kurulur.`
+                        : `Boş bırakırsan işlem kilometresine ${formatNumber(String(interval.km))} km eklenerek otomatik ayarlanır. Ayrıca ${interval.years} yıl sonrası için tarih hatırlatıcısı kurulur.`}
+                    </Text>
+                  )}
+                </>
+              )}
+
+              {interval && !isPeriyodik && (
+                <Text style={styles.fieldHint}>
+                  {`Sonraki ${recordType} otomatik ayarlanır: ${
+                    kmNow > 0
+                      ? `${formatNumber(String(kmNow + interval.km))} km`
+                      : `işlem km'sine +${formatNumber(String(interval.km))} km`
+                  } veya ${interval.years} yıl sonrası (hangisi önce gelirse).`}
+                </Text>
               )}
 
               {isDateType && (

@@ -49,6 +49,7 @@ export const useMaintenanceReminders = () => {
 
       const result = await scheduleSmartReminders(
         carName, recordType, recordDate, recordKm, isTicari,
+        { nextDate: existingNextDate, nextKm: existingNextKm },
       );
 
       if (!finalNextDate && result.nextDate) finalNextDate = result.nextDate;
@@ -79,6 +80,7 @@ export const useMaintenanceReminders = () => {
 
       const result = await scheduleSmartReminders(
         carName, editType, editDate, editKm, isTicari,
+        { nextDate: existingNextDate, nextKm: existingNextKm },
       );
 
       if (!finalNextDate && result.nextDate) finalNextDate = result.nextDate;

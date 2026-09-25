@@ -7,14 +7,14 @@ import {
   deleteMaintenanceRecord,
 } from '../services/storage';
 import { getErrorMessage } from '../config/errors';
+import { checkKmDueForCar } from '../services/kmAlerts';
 
 export const MAINTENANCE_TYPES = [
-  'Periyodik Bakım', 'Yağ Değişimi', 'Sigorta', 'Kasko', 'Muayene',
-  'Lastik Değişimi', 'Rot Balans', 'Fren Bakımı', 'Triger Seti',
-  'Klima Bakımı', 'Akü Değişimi', 'Cam Suyu', 'Diğer',
+  'Periyodik Bakım', 'Sigorta', 'Kasko', 'Muayene', 'Triger Seti',
+  'Lastik Değişimi', 'Rot Balans', 'Fren Bakımı', 'Akü Değişimi', 'Diğer',
 ];
 
-export const YEARS = Array.from({ length: 30 }, (_, i) => (2025 - i).toString());
+export const YEARS = Array.from({ length: 30 }, (_, i) => (new Date().getFullYear() - i).toString());
 
 const getTodayDate = () => new Date().toLocaleDateString('tr-TR');
 
@@ -68,6 +68,8 @@ export const useRecordManager = (
       const updatedCar = { ...selectedCar, records: [newRecord, ...selectedCar.records] };
       updateCarInList(updatedCar);
       resetForm();
+      // Bu kayıttaki km, aynı araca ait diğer bakım hedeflerine yaklaştıysa bildir.
+      await checkKmDueForCar(selectedCar.id, parseInt(newRecord.km, 10) || undefined);
     } catch (err) {
       Alert.alert('Hata', getErrorMessage(err));
     }
@@ -110,6 +112,7 @@ export const useRecordManager = (
         ),
       };
       updateCarInList(updatedCar);
+      await checkKmDueForCar(selectedCar.id, parseInt(updatedRecord.km, 10) || undefined);
     } catch (err) {
       Alert.alert('Hata', getErrorMessage(err));
     }

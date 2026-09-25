@@ -7,6 +7,7 @@ export interface FuelForm {
   currentKm:     string;
   isFull:        boolean;
   station:       string;
+  date:          string; // gg.aa.yyyy; boşsa kayıt günü kullanılır
 }
 
 export const EMPTY_FORM: FuelForm = {
@@ -16,6 +17,7 @@ export const EMPTY_FORM: FuelForm = {
   currentKm:     '',
   isFull:        false,
   station:       '',
+  date:          '',
 };
 
 export const useFuelForm = () => {

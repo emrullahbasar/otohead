@@ -90,6 +90,7 @@ export default function FuelScreen() {
               updateField={updateField}
               onSave={handleCalculateAndSave}
               onReceiptScanned={handleReceiptScanned}
+              hasHistory={history.length > 0}
             />
             <FuelHistoryView
               filteredHistory={filteredHistory}

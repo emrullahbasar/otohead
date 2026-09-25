@@ -3,74 +3,57 @@ import {
   View, Text, Pressable, ActivityIndicator, StyleSheet, Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
+import TextRecognition, { TextRecognitionResult } from '@react-native-ml-kit/text-recognition';
 import { tokens } from '../../config/tokens';
+import { FuelForm } from '../../hooks/useFuelForm';
+import { buildRows, parseFuelReceipt, OcrWord, ReceiptData } from '../../utils/receiptParser';
 
 const t = tokens;
 
-interface ExtractedData {
-  pricePerLiter?: string;
-  totalLiters?: string;
-  currentKm?: string;
-}
-
 interface Props {
-  onDataExtracted: (data: Partial<{
-    pricePerLiter: string;
-    totalLiters: string;
-    currentKm: string;
-    station: string;
-  }>) => void;
+  onDataExtracted: (data: Partial<Pick<FuelForm, 'pricePerLiter' | 'totalLiters' | 'currentKm' | 'station' | 'date'>>) => void;
 }
 
-const PATTERNS = {
-  pricePerLiter: [
-    /birim\s*fiyat[:\s]*([0-9]+[.,][0-9]+)/i,
-    /lt\s*fiyat[:\s]*([0-9]+[.,][0-9]+)/i,
-    /litre\s*fiyat[:\s]*([0-9]+[.,][0-9]+)/i,
-    /unit\s*price[:\s]*([0-9]+[.,][0-9]+)/i,
-    /fiyat[:\s]*([0-9]{2,3}[.,][0-9]{2,3})/i,
-    /([0-9]{2,3}[.,][0-9]{2,3})\s*(?:tl|₺)?\s*\/?\s*(?:lt|litre|l\b)/i,
-  ],
-  totalLiters: [
-    /(?:toplam\s*)?miktar[:\s]*([0-9]+[.,][0-9]+)\s*(?:lt|litre|l\b)/i,
-    /([0-9]+[.,][0-9]+)\s*(?:lt|litre)\b/i,
-    /alınan\s*yakıt[:\s]*([0-9]+[.,][0-9]+)/i,
-    /tutar\s*lt[:\s]*([0-9]+[.,][0-9]+)/i,
-    /lt[:\s]*([0-9]+[.,][0-9]{2,3})/i,
-  ],
-  km: [
-    /km[:\s]*([0-9]+(?:[.,][0-9]+)?)/i,
-    /kilometre[:\s]*([0-9]+)/i,
-    /sayaç[:\s]*([0-9]+)/i,
-    /odometer[:\s]*([0-9]+)/i,
-    /([0-9]{4,6})\s*km/i,
-  ],
-  station: [
-    /^(shell|bp|opet|total|türkiye\s*petrolleri|tp|alpet|aytemiz|go\s*petrol|eko|petrol\s*ofisi|po\b)/im,
-  ],
-};
-
-function tryMatch(text: string, patterns: RegExp[]): string | undefined {
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match?.[1]) {
-      return match[1].replace(',', '.');
+// ML Kit çıktısını kelime + konum listesine çevirir. Eğim açısı kelimenin
+// köşe noktalarından hesaplanır (fiş hafif eğik çekilmişse satırlar bozulmasın).
+function toWords(result: TextRecognitionResult): OcrWord[] {
+  const words: OcrWord[] = [];
+  for (const block of result.blocks) {
+    for (const line of block.lines) {
+      for (const element of line.elements) {
+        if (!element.frame) continue;
+        const corners = element.cornerPoints ?? line.cornerPoints;
+        const angle = corners
+          ? Math.atan2(corners[1].y - corners[0].y, corners[1].x - corners[0].x)
+          : undefined;
+        words.push({
+          text:   element.text,
+          top:    element.frame.top,
+          left:   element.frame.left,
+          width:  element.frame.width,
+          height: element.frame.height,
+          angle,
+        });
+      }
     }
   }
-  return undefined;
+  return words;
 }
 
-function extractFromText(text: string): ExtractedData & { station?: string } {
-  const normalized = text
-    .replace(/\r\n/g, '\n')
-    .replace(/[İ]/g, 'I')
-    .replace(/[ı]/g, 'i');
+// İki farklı yöntemle okur ve birleştirir: (1) kelimeleri konumlarına göre satırlara
+// dizerek (bölünmüş bloklara dayanıklı), (2) ML Kit'in kendi satır metinleriyle.
+// Aynı alan ikisinde de varsa (1) tercih edilir; eksik kalanlar (2)'den tamamlanır.
+function extractFromResult(result: TextRecognitionResult): ReceiptData {
+  const byPosition = parseFuelReceipt(buildRows(toWords(result)));
+  const byLines = parseFuelReceipt(result.blocks.flatMap(b => b.lines.map(l => l.text)));
   return {
-    pricePerLiter: tryMatch(normalized, PATTERNS.pricePerLiter),
-    totalLiters:   tryMatch(normalized, PATTERNS.totalLiters),
-    currentKm:     tryMatch(normalized, PATTERNS.km),
-    station:       tryMatch(normalized, PATTERNS.station),
+    date:          byPosition.date          ?? byLines.date,
+    pricePerLiter: byPosition.pricePerLiter ?? byLines.pricePerLiter,
+    totalLiters:   byPosition.totalLiters   ?? byLines.totalLiters,
+    totalAmount:   byPosition.totalAmount   ?? byLines.totalAmount,
+    currentKm:     byPosition.currentKm     ?? byLines.currentKm,
+    station:       byPosition.station       ?? byLines.station,
+    fuelType:      byPosition.fuelType      ?? byLines.fuelType,
   };
 }
 
@@ -82,13 +65,13 @@ export default function FuelReceiptScanner({ onDataExtracted }: Props) {
     if (fromCamera) {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Kamera kullanmak için izin vermeniz gerekiyor. Ayarlar > ArabamCepte > Kamera');
+        Alert.alert('İzin Gerekli', 'Kamera kullanmak için izin vermeniz gerekiyor. Ayarlar > OtoHead > Kamera');
         return;
       }
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Galeriye erişmek için izin vermeniz gerekiyor. Ayarlar > ArabamCepte > Fotoğraflar');
+        Alert.alert('İzin Gerekli', 'Galeriye erişmek için izin vermeniz gerekiyor. Ayarlar > OtoHead > Fotoğraflar');
         return;
       }
     }
@@ -109,10 +92,9 @@ export default function FuelReceiptScanner({ onDataExtracted }: Props) {
     try {
       const uri = result.assets[0].uri;
       const recognized = await TextRecognition.recognize(uri);
-      const rawText = recognized.blocks.map(b => b.text).join('\n');
-      const extracted = extractFromText(rawText);
+      const extracted = extractFromResult(recognized);
 
-      const hasData = extracted.pricePerLiter || extracted.totalLiters || extracted.currentKm;
+      const hasData = extracted.pricePerLiter || extracted.totalLiters || extracted.totalAmount;
       if (!hasData) {
         Alert.alert(
           'Fiş Okunamadı',
@@ -127,18 +109,28 @@ export default function FuelReceiptScanner({ onDataExtracted }: Props) {
         totalLiters:   extracted.totalLiters,
         currentKm:     extracted.currentKm,
         station:       extracted.station,
+        date:          extracted.date,
       });
 
-      const filled = [
-        extracted.pricePerLiter && 'Litre Fiyatı',
-        extracted.totalLiters   && 'Litre Miktarı',
-        extracted.currentKm     && 'Kilometre',
-        extracted.station       && 'İstasyon',
+      const summary = [
+        extracted.date          && `Tarih: ${extracted.date}`,
+        extracted.totalLiters   && `Litre: ${extracted.totalLiters}`,
+        extracted.pricePerLiter && `Litre fiyatı: ${extracted.pricePerLiter} TL`,
+        extracted.totalAmount   && `Toplam tutar: ${extracted.totalAmount} TL`,
+        extracted.fuelType      && `Yakıt: ${extracted.fuelType}`,
+        extracted.station       && `İstasyon: ${extracted.station}`,
+        extracted.currentKm     && `Kilometre: ${extracted.currentKm}`,
+      ].filter(Boolean);
+
+      const missing = [
+        !extracted.date          && 'Tarih',
+        !extracted.pricePerLiter && 'Litre fiyatı',
+        !extracted.totalLiters   && 'Litre',
       ].filter(Boolean);
 
       Alert.alert(
         'Fiş Okundu ✓',
-        `Otomatik doldurulan alanlar:\n${filled.join(', ')}\n\nLütfen bilgileri kontrol edin.`,
+        `${summary.join('\n')}${missing.length ? `\n\nOkunamayan: ${missing.join(', ')}` : ''}\n\nLütfen bilgileri kontrol edin.`,
         [{ text: 'Tamam' }],
       );
     } catch {

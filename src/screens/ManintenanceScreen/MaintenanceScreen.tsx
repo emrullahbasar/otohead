@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import { useMaintenanceReminders } from '../../hooks/useMaintenanceReminders';
 import { MaintenanceRecord } from '../../types';
+import { confirmKmJump } from '../../utils/kmGuard';
 import { CarListView } from './CarListView';
 import { CarDetailsView } from './CarDetailsView';
 import { SelectionModal } from './components/SelectionModal';
@@ -51,6 +52,9 @@ export default function MaintenanceScreen() {
   };
 
   const handleAddRecordWithReminder = async () => {
+    // Hatırlatıcılar kurulmadan önce: aşırı büyük km atlamasında onay iste.
+    if (selectedCar && !(await confirmKmJump(selectedCar.id, parseInt(recordKm, 10)))) return;
+
     const { nextDate, nextKm } = await reminders.scheduleForRecord(
       carName, recordType, recordDate, recordKm,
       restMaintenance.recordNextDate,

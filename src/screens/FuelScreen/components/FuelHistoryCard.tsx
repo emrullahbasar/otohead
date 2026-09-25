@@ -11,7 +11,8 @@ interface Props {
 
 export default function FuelHistoryCard({ item, onDelete }: Props) {
   const totalCost  = (item.pricePerLiter * item.totalLiters).toFixed(2);
-  const kmDiff     = item.currentKm - item.previousKm;
+  // İlk kayıtta önceki km yok (0 saklanır); anlamsız "+X km yapıldı" göstermeyelim.
+  const kmDiff     = item.previousKm > 0 ? item.currentKm - item.previousKm : 0;
 
   return (
     <Swipeable
