@@ -1,4 +1,4 @@
-# SECURITY-AUDIT.md — OtoCep (ArabamCepte)
+# SECURITY-AUDIT.md — OtoHead
 
 Tarih: 2026-09-22 | Metodoloji: OWASP MASVS v2 / MASTG | Kapsam: `C:\mobile` (statik analiz;
 build çıktısı/APK üzerinde doğrulama bu ortamda yapılamadı — bkz. her bulgunun "Doğrulama" satırı)

@@ -22,8 +22,8 @@ const TAB_ICONS: Record<keyof MainTabParamList, ImageSourcePropType | null> = {
 
 const TAB_LABELS: Record<keyof MainTabParamList, string> = {
   'Ana Sayfa':     'Ana Sayfa',
-  'Yakıt':         'Yakıt',
-  'Araç Yönetimi': 'Yönetim',
+  'Yakıt':         'Yakıt Takip',
+  'Araç Yönetimi': 'Araç Yönetimi',
   'Araç Öneri':    'Danışmanlık',
 };
 

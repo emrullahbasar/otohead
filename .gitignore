@@ -44,3 +44,9 @@ yarn-error.*
 # backend/ is its own separate git repository (own remote, own history) —
 # never track it from here.
 /backend
+
+# Firebase / service account anahtarları: asla repoya girmez
+/google-services.json
+/GoogleService-Info.plist
+*-firebase-adminsdk-*.json
+*service-account*.json

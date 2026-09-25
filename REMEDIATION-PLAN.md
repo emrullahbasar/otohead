@@ -1,4 +1,4 @@
-# REMEDIATION-PLAN.md — OtoCep (ArabamCepte)
+# REMEDIATION-PLAN.md — OtoHead
 
 Öncelik kovaları `SECURITY-AUDIT.md`'deki bulgu ID'lerine referans verir. Efor tahminleri
 kabaca: **S** = <1 saat, **M** = birkaç saat, **L** = 1 gün+.

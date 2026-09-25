@@ -1,29 +1,50 @@
-import React from 'react';
+import React, { useState } from "react";
 import {
-  View, Text,Image, ScrollView, Pressable,
-  StyleSheet, Platform,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHomeStats } from '../../hooks/useHomeStats';
-import { MainTabParamList } from '../../navigation/types';
-import { tokens } from '../../config/tokens';
-import { styles, sk } from './styles';
+  View,
+  Text,
+  Image,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  Platform,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useHomeStats } from "../../hooks/useHomeStats";
+import { MainTabParamList } from "../../navigation/types";
+import { tokens } from "../../config/tokens";
+import { styles, sk } from "./styles";
+import PrivacyModal from "./PrivacyModal";
 
 type NavigationProp = BottomTabNavigationProp<MainTabParamList>;
 
 const t = tokens;
 
 const MENU_ITEMS: {
-  tab:  keyof MainTabParamList;
+  tab: keyof MainTabParamList;
   icon: any;
   title: string;
-  sub:  string;
+  sub: string;
 }[] = [
-  { tab: 'Araç Öneri',    icon: require('../../../assets/icons/consulting.png'), title: 'Araç Danışmanlık',      sub: 'Uzman ekibimizden araç önerisi ve değerlendirme alın'  },
-  { tab: 'Yakıt',         icon: require('../../../assets/icons/fuel.png'), title: 'Yakıt Takip',            sub: 'Yakıt tüketimi ve maliyet analizi'                     },
-  { tab: 'Araç Yönetimi', icon: require('../../../assets/icons/maintenance.png'), title: 'Araç Yönetimi',          sub: 'Bakım, muayene, sigorta ve kasko takibi'               },
+  {
+    tab: "Yakıt",
+    icon: require("../../../assets/icons/fuel.png"),
+    title: "Yakıt Takip",
+    sub: "Yakıt tüketimi ve maliyet analizi",
+  },
+  {
+    tab: "Araç Yönetimi",
+    icon: require("../../../assets/icons/maintenance.png"),
+    title: "Araç Yönetimi",
+    sub: "Bakım, muayene, sigorta ve kasko takibi",
+  },
+  {
+    tab: "Araç Öneri",
+    icon: require("../../../assets/icons/consulting.png"),
+    title: "Danışmanlık",
+    sub: "Uzman ekibimizden araç önerisi ve değerlendirme alın",
+  },
 ];
 
 function SkeletonCard() {
@@ -37,9 +58,10 @@ function SkeletonCard() {
 }
 
 export default function HomeScreen() {
-  const insets        = useSafeAreaInsets();
-  const navigation    = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp>();
   const { carCount, recordCount, loading } = useHomeStats();
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   return (
     <ScrollView
@@ -50,7 +72,7 @@ export default function HomeScreen() {
       {/* ── HEADER ── */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerBrand}>
-          <Text style={styles.brandName}>OtoCep</Text>
+          <Text style={styles.brandName}>OtoHead</Text>
         </View>
         <Text style={styles.headerTagline}>
           Aracınızı takip edin, masrafları kontrol altında tutun
@@ -67,8 +89,11 @@ export default function HomeScreen() {
         ) : (
           <>
             <Pressable
-              style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]}
-              onPress={() => navigation.navigate('Araç Yönetimi')}
+              style={({ pressed }) => [
+                styles.statCard,
+                pressed && styles.statCardPressed,
+              ]}
+              onPress={() => navigation.navigate("Araç Yönetimi")}
             >
               <Text style={styles.statIcon}>🚗</Text>
               <Text style={styles.statNumber}>{carCount}</Text>
@@ -76,8 +101,11 @@ export default function HomeScreen() {
             </Pressable>
 
             <Pressable
-              style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]}
-              onPress={() => navigation.navigate('Araç Yönetimi')}
+              style={({ pressed }) => [
+                styles.statCard,
+                pressed && styles.statCardPressed,
+              ]}
+              onPress={() => navigation.navigate("Araç Yönetimi")}
             >
               <Text style={styles.statIcon}>🔧</Text>
               <Text style={styles.statNumber}>{recordCount}</Text>
@@ -118,9 +146,16 @@ export default function HomeScreen() {
 
       {/* ── FOOTER ── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <Text style={styles.footerText}>OtoCep • Türkiye'nin Araç Yönetim Uygulaması</Text>
+        <Pressable onPress={() => setShowPrivacy(true)} hitSlop={12}>
+          <Text style={[styles.footerText, { textDecorationLine: "underline", marginBottom: 8 }]}>
+            Gizlilik ve Veriler
+          </Text>
+        </Pressable>
+        <Text style={styles.footerText}>
+          OtoHead • Türkiye'nin Araç Yönetim Uygulaması
+        </Text>
       </View>
+      <PrivacyModal visible={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </ScrollView>
   );
 }
-

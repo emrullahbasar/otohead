@@ -2,9 +2,9 @@ import 'dotenv/config';
 
 export default {
   expo: {
-    name: 'ArabamCepte',
-    slug: 'arabamcepte',
-    scheme: 'arabamcepte',
+    name: 'OtoHead',
+    slug: 'otohead',
+    scheme: 'otohead',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -12,11 +12,11 @@ export default {
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#F0F0F0',
+      backgroundColor: '#062651',
     },
     ios: {
       supportsTablet: false,
-      bundleIdentifier: 'com.emrullah4.arabamcepte',
+      bundleIdentifier: 'com.emrullah4.otohead',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription: 'Yakıt fişini taramak için kamera gereklidir.',
@@ -24,11 +24,13 @@ export default {
       },
     },
     android: {
-      package: 'com.emrullah4.arabamcepte',
+      package: 'com.emrullah4.otohead',
+      // Repoda tutulmaz (.gitignore); EAS derlemesinde GOOGLE_SERVICES_JSON dosya değişkeni olarak gelir.
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
       allowBackup: false,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#F0F0F0',
+        backgroundColor: '#062651',
       },
       predictiveBackGestureEnabled: false,
       permissions: [
@@ -69,7 +71,7 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: 'ccd47d7f-a085-4f9c-8beb-e7045ec2c347',
+        projectId: 'f818d42e-093d-4891-bb05-9527743cc774',
       },
     },
   },

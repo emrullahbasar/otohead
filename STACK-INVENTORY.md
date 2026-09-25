@@ -1,4 +1,4 @@
-# STACK-INVENTORY.md — OtoCep (ArabamCepte)
+# STACK-INVENTORY.md — OtoHead
 
 Tarih: 2026-09-22 | Denetleyen: Claude (agent) | Kapsam: `C:\mobile`
 

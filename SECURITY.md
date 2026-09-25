@@ -1,6 +1,6 @@
 # Güvenlik Politikası
 
-OtoCep (ArabamCepte) bireysel geliştirilen bir mobil uygulamadır.
+OtoHead bireysel geliştirilen bir mobil uygulamadır.
 
 ## Güvenlik açığı bildirimi
 
