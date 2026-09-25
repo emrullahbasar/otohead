@@ -43,7 +43,7 @@ export const SimpleRequestForm = ({
       <Text style={styles.label}>{ilanNoLabel}</Text>
       <TextInput
         style={styles.input}
-        placeholder="örn. 1234567890"
+        placeholder="örn. 1181405293"
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={ilanNo}
         onChangeText={setIlanNo}

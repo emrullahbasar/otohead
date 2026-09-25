@@ -118,7 +118,7 @@ export default function EvaluateTab({ evaluation }: Props) {
         loading={evaluation.loading}
         error={evaluation.error}
         onSubmit={evaluation.handleSubmit}
-        placeholder="örn. Şu ilan numaralı xxx ,2018 VW Passat 1.6 TDI DSG alınır mı? Fiyatı uygun mu? Nelere dikkat etmeliyim?"
+        placeholder="Bu aracı almayı düşünüyorum, Fiyatı ve durumu hakkında uzman görüşü alabilir miyim?"
         buttonText="🔎 Değerlendirme İste"
         ilanNoLabel="İlan Numarası"
         messageLabel="Değerlendirme İsteğiniz"

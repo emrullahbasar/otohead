@@ -110,6 +110,11 @@ export default function FindTab({ suggestion }: Props) {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      <View style={{ padding: t.spacing.base, paddingBottom: 0 }}>
+              <Text style={styles.headerSub}>
+                Kriterlerinize uygun araç önerisi almak için aşağıdaki formu doldurun. Uzman ekibimiz en kısa sürede size geri dönüş yapacaktır.
+              </Text>
+            </View>
       {suggestion.error !== '' && (
         <View style={[styles.errorBox, { margin: t.spacing.base }]}>
           <Text style={styles.errorText}>⚠️ {suggestion.error}</Text>

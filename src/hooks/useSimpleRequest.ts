@@ -10,13 +10,15 @@ import {
 
 const CACHE_KEY = 'lastEvaluation';
 const DISMISSED_KEY = 'dismissedEvaluation';
+const UNCERTAIN = 'BELIRSIZ';
 
 const NO_RESULT: SimpleResult = {
   status: 'YOK', answer: null, ilanNo: null, message: null, requestId: null, createdAt: null,
 };
 
+// 'YOK' işareti "sunucuda bu cihaza ait istek yok" bilgisinin kesinleştiğini gösterir.
 const persist = (result: SimpleResult) => {
-  setConfig(CACHE_KEY, result.status === 'YOK' ? '' : JSON.stringify(result)).catch(() => {});
+  setConfig(CACHE_KEY, result.status === 'YOK' ? 'YOK' : JSON.stringify(result)).catch(() => {});
 };
 
 export const useSimpleRequest = () => {
@@ -34,11 +36,15 @@ export const useSimpleRequest = () => {
   const inFlightRef = useRef(false);
   const resultRef   = useRef<SimpleResult | null>(null);
   resultRef.current = result;
+  const knownNoneRef  = useRef(false);
+  const cacheReadyRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     getClientId().then(setClientId).catch(() => {});
-    getConfig(CACHE_KEY).then(raw => {
-      if (!raw) return;
+    cacheReadyRef.current = getConfig(CACHE_KEY).then(raw => {
+      // Kayıt hiç yoksa bu cihaz hiç istek göndermemiştir; sunucuya sormaya gerek yok.
+      if (!raw || raw === 'YOK') { knownNoneRef.current = true; return; }
+      if (raw === UNCERTAIN) return;   // gönderim hatası: isteğin ulaşıp ulaşmadığı belirsiz, sor
       try {
         const cached = JSON.parse(raw) as SimpleResult;
         setResult(prev => prev ?? cached);
@@ -66,6 +72,7 @@ export const useSimpleRequest = () => {
       if (seq !== seqRef.current) return;
       const data = await applyDismissed(raw);
       if (seq !== seqRef.current) return;
+      knownNoneRef.current = data.status === 'YOK';
       setResult(data);
       persist(data);
       if (data.status === 'BEKLİYOR') syncPushToken();
@@ -89,6 +96,8 @@ export const useSimpleRequest = () => {
   const checkOnMount = useCallback(async () => {
     if (checkedRef.current || !clientId) return;
     checkedRef.current = true;
+    await cacheReadyRef.current;
+    if (knownNoneRef.current) return;
     await runCheck(false);
   }, [clientId, runCheck]);
 
@@ -109,11 +118,16 @@ export const useSimpleRequest = () => {
       const payload: SimpleRequest = { clientId, ilanNo: ilanNo.trim(), message: message.trim() };
       await submitEvaluation(payload);
       setSubmitted(true);
+      knownNoneRef.current = false;
+      persist({ ...NO_RESULT, status: 'BEKLİYOR' });
       syncPushToken();
       setIlanNo('');
       setMessage('');
       forceCheck();
     } catch (err: any) {
+      // İstek sunucuya ulaşmış olabilir: bir sonraki açılışta mutlaka sor.
+      knownNoneRef.current = false;
+      setConfig(CACHE_KEY, UNCERTAIN).catch(() => {});
       setError(err?.message || 'İstek gönderilemedi. İnternet bağlantınızı kontrol edin.');
       if (String(err?.message).includes('Zaten')) forceCheck();
     } finally {
@@ -131,6 +145,7 @@ export const useSimpleRequest = () => {
     setSubmitted(false);
     setResult(null);
     persist(NO_RESULT);
+    knownNoneRef.current = true;
     setIlanNo('');
     setMessage('');
   }, []);

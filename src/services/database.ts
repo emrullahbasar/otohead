@@ -7,7 +7,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 export const getDB = async (): Promise<SQLite.SQLiteDatabase> => {
   if (!db) {
     try {
-      db = await SQLite.openDatabaseAsync('arabamcepte.db');
+      db = await SQLite.openDatabaseAsync('otohead.db');
     } catch {
       throw new DatabaseError('Veritabanı açılamadı.');
     }

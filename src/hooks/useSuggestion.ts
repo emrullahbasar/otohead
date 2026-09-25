@@ -27,6 +27,7 @@ export const useSuggestion = () => {
       const payload = formHook.buildPayload(statusHook.clientId);
       await submitSuggestion(payload);
       statusHook.setSubmitted(true);
+      statusHook.markSubmitted();
       syncPushToken();
       formHook.resetForm();
       statusHook.checkedRef.current = false;
@@ -34,6 +35,7 @@ export const useSuggestion = () => {
       // sorgu varsa onu geçersiz kılar), başarısız olursa hata gösterilmez.
       statusHook.forceCheck();
     } catch (err: any) {
+      statusHook.markUncertain();
       setError(err?.message || 'İstek gönderilemedi.');
       // Sunucuda zaten bekleyen bir istek varsa ekran gerçek durumu göstersin.
       if (String(err?.message).includes('Zaten')) statusHook.forceCheck();

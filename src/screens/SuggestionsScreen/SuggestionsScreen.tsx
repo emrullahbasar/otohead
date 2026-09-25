@@ -17,8 +17,8 @@ const t = tokens;
 type TabType = 'find' | 'evaluate';
 
 const TABS: { key: TabType; label: string }[] = [
-  { key: 'find',     label: 'Araç Bul'      },
-  { key: 'evaluate', label: 'Değerlendirme' },
+  { key: 'find',     label: 'Kriterlere Göre Bul'      },
+  { key: 'evaluate', label: 'Araç Değerlendirme' },
 ];
 
 export default function SuggestionsScreen() {
