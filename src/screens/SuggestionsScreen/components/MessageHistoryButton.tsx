@@ -40,7 +40,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
   },
   icon: {
-    fontSize: 40,
+    fontSize: 30,
   },
   label: {
     ...t.typography.caption,

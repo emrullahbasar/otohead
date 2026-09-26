@@ -35,7 +35,6 @@ export default function FuelScreen() {
         keyboardDismissMode="on-drag"
       >
         <ScreenHeader
-          icon="⛽"
           title="Yakıt Takip"
           subtitle="Tüketim ve maliyet analizi"
         />

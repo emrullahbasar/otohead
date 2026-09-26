@@ -83,7 +83,6 @@ export default function SuggestionsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScreenHeader
-        icon="💬"
         title="Araç Danışmanlık"
         subtitle="Uzman ekibimizden destek alın"
       />

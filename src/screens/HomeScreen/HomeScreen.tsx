@@ -72,7 +72,6 @@ export default function HomeScreen() {
     >
       {/* ── HEADER ── */}
       <ScreenHeader
-        icon="🚗"
         title="OtoHead"
         subtitle="Aracınızı takip edin, masrafları kontrol altında tutun"
       />

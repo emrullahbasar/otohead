@@ -51,7 +51,6 @@ export const CarListView = ({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScreenHeader
-        icon="🔧"
         title="Araç Yönetimi"
         subtitle="Bakım, muayene, sigorta ve daha fazlasını takip edin"
       />
