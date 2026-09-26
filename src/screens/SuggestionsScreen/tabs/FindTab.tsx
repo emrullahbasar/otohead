@@ -135,7 +135,7 @@ export default function FindTab({ suggestion }: Props) {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 64 }}>
+        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 116 }}>
           <Text style={styles.headerSub}>
             Kriterlerinize uygun araç önerisi almak için aşağıdaki formu doldurun. Uzman ekibimiz en kısa sürede size geri dönüş yapacaktır.
           </Text>

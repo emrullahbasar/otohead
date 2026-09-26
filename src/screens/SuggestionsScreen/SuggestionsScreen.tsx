@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Platform, KeyboardAvoidingView, AppState,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { MainTabParamList } from '../../navigation/types';
 import { useSuggestion, FUEL_TYPES, GEAR_TYPES } from '../../hooks/useSuggestion';
@@ -12,6 +11,7 @@ import FindTab from './tabs/FindTab';
 import EvaluateTab from './tabs/EvaluateTab';
 import { styles } from './styles';
 import { tokens } from '../../config/tokens';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 const t = tokens;
 type TabType = 'find' | 'evaluate';
@@ -22,7 +22,6 @@ const TABS: { key: TabType; label: string }[] = [
 ];
 
 export default function SuggestionsScreen() {
-  const insets     = useSafeAreaInsets();
   const route      = useRoute<RouteProp<MainTabParamList, 'Araç Öneri'>>();
   const [activeTab, setActiveTab] = useState<TabType>('find');
   const suggestion = useSuggestion();
@@ -83,10 +82,11 @@ export default function SuggestionsScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.headerBox, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.header}>Araç Danışmanlık</Text>
-        <Text style={styles.headerSub}>Uzman ekibimizden destek alın</Text>
-      </View>
+      <ScreenHeader
+        icon="💬"
+        title="Araç Danışmanlık"
+        subtitle="Uzman ekibimizden destek alın"
+      />
 
       <View style={tabStyles.bar}>
         {TABS.map(tab => (

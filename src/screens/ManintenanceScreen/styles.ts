@@ -9,24 +9,6 @@ export const styles = StyleSheet.create({
     backgroundColor: t.color.bg.base,
   },
 
-  // Ana Header
-  mainHeader: {
-    backgroundColor: t.color.bg.surface,
-    paddingBottom: t.spacing.lg,
-    paddingHorizontal: t.spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: t.color.border.divider,
-  },
-  mainHeaderText: {
-    ...t.typography.h1,
-    color: t.color.text.primary,
-  },
-  mainHeaderSub: {
-    ...t.typography.caption,
-    color: t.color.text.muted,
-    marginTop: 4,
-  },
-
   // Araç detay header
   headerRow: {
     flexDirection: 'row',

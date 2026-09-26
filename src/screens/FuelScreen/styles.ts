@@ -12,24 +12,6 @@ export const styles = StyleSheet.create({
     paddingBottom: t.spacing['3xl'],
   },
 
-  // Header
-  headerBox: {
-    backgroundColor: t.color.bg.surface,
-    paddingHorizontal: t.spacing.base,
-    paddingBottom: t.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: t.color.border.divider,
-  },
-  mainTitle: {
-    ...t.typography.h1,
-    color: t.color.text.primary,
-  },
-  mainSub: {
-    ...t.typography.caption,
-    color: t.color.text.muted,
-    marginTop: 4,
-  },
-
   // Analysis Card
   analysisCard: {
     backgroundColor: t.color.bg.surface,

@@ -16,6 +16,7 @@ import { MainTabParamList } from "../../navigation/types";
 import { tokens } from "../../config/tokens";
 import { styles, sk } from "./styles";
 import PrivacyModal from "./PrivacyModal";
+import { ScreenHeader } from "../../components/ScreenHeader";
 
 type NavigationProp = BottomTabNavigationProp<MainTabParamList>;
 
@@ -70,14 +71,11 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* ── HEADER ── */}
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <View style={styles.headerBrand}>
-          <Text style={styles.brandName}>OtoHead</Text>
-        </View>
-        <Text style={styles.headerTagline}>
-          Aracınızı takip edin, masrafları kontrol altında tutun
-        </Text>
-      </View>
+      <ScreenHeader
+        icon="🚗"
+        title="OtoHead"
+        subtitle="Aracınızı takip edin, masrafları kontrol altında tutun"
+      />
 
       {/* ── STATS ── */}
       <View style={styles.statsRow}>

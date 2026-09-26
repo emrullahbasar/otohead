@@ -14,6 +14,11 @@ import { useConsultingEntitlement } from '../../../hooks/useConsultingEntitlemen
 
 const t = tokens;
 
+// Gerçek IAP/satın alma altyapısı kurulana kadar premium kilidi geçici olarak
+// kapalı (test edebilmek için) — kilit ekranı ve hak kontrolü kodu duruyor,
+// hazır olunca bu bayrak true yapılacak.
+const PREMIUM_GATE_ENABLED = false;
+
 interface Props {
   evaluation: ReturnType<typeof useSimpleRequest>;
 }
@@ -35,7 +40,7 @@ export default function EvaluateTab({ evaluation }: Props) {
 
   // Hak bilgisi yüklenene kadar (ilk açılış, çok kısa) boş ekran yerine bir
   // spinner göster — "önce kilitli, sonra açık" gibi bir yanıp sönme olmasın.
-  if (entitled === null) {
+  if (PREMIUM_GATE_ENABLED && entitled === null) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={t.color.brand.primary} />
@@ -43,7 +48,7 @@ export default function EvaluateTab({ evaluation }: Props) {
     );
   }
 
-  if (!entitled) {
+  if (PREMIUM_GATE_ENABLED && !entitled) {
     return <PremiumGate />;
   }
 
@@ -147,7 +152,7 @@ export default function EvaluateTab({ evaluation }: Props) {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 64 }}>
+        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 116 }}>
           <Text style={styles.headerSub}>
             Beğendiğiniz araç veya araçlar hakkında uzman görüşü alın.
           </Text>

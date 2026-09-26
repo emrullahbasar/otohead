@@ -3,11 +3,11 @@ import {
   View, Text, ScrollView, Pressable, TextInput, Alert, StyleSheet,
   Platform, KeyboardAvoidingView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Car } from '../../types';
 import { CarCard } from './components/CarCard';
 import { styles } from './styles';
 import { tokens } from '../../config/tokens';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 const t = tokens;
 
@@ -45,19 +45,16 @@ export const CarListView = ({
     setShowCarForm(false);
   };
 
-  const insets = useSafeAreaInsets();
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.mainHeader, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.mainHeaderText}>Araç Yönetimi</Text>
-        <Text style={styles.mainHeaderSub}>
-          Bakım, muayene, sigorta ve daha fazlasını takip edin
-        </Text>
-      </View>
+      <ScreenHeader
+        icon="🔧"
+        title="Araç Yönetimi"
+        subtitle="Bakım, muayene, sigorta ve daha fazlasını takip edin"
+      />
 
       <ScrollView
         style={styles.content}

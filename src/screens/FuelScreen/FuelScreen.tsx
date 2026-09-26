@@ -3,18 +3,17 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView,
   Platform, KeyboardAvoidingView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFuel } from '../../hooks/useFuel';
 import FuelAnalysisView from './FuelAnalysisView';
 import FuelFormView from './FuelFormView';
 import FuelHistoryView from './FuelHistoryView';
 import { styles } from './styles';
 import { tokens } from '../../config/tokens';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 const t = tokens;
 
 export default function FuelScreen() {
-  const insets = useSafeAreaInsets();
   const {
     cars, selectedCar, selectedCarId, handleSelectCar, loadingCars,
     record, history, filteredHistory,
@@ -25,7 +24,7 @@ export default function FuelScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.safeArea, { paddingTop: insets.top }]}
+      style={styles.safeArea}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -35,10 +34,11 @@ export default function FuelScreen() {
         // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
         keyboardDismissMode="on-drag"
       >
-        <View style={styles.headerBox}>
-          <Text style={styles.mainTitle}>Yakıt Takip</Text>
-          <Text style={styles.mainSub}>Tüketim ve maliyet analizi</Text>
-        </View>
+        <ScreenHeader
+          icon="⛽"
+          title="Yakıt Takip"
+          subtitle="Tüketim ve maliyet analizi"
+        />
 
         {loadingCars ? (
           <View style={carStyles.loadingBox}>

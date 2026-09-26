@@ -12,39 +12,6 @@ export const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  // ── Header ──
-  header: {
-    backgroundColor: t.color.bg.surface,
-    paddingHorizontal: t.spacing.base,
-    paddingBottom: t.spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: t.color.border.divider,
-  },
-  headerBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: t.spacing.sm,
-    marginBottom: t.spacing.sm,
-  },
-  brandName: {
-    ...t.typography.h1,
-    color: t.color.brand.primary,
-  },
-  brandBadge: {
-    backgroundColor: t.color.brand.light,
-    paddingHorizontal: t.spacing.sm,
-    paddingVertical: 3,
-    borderRadius: t.radius.sm,
-  },
-  brandBadgeText: {
-    ...t.typography.overline,
-    color: t.color.brand.primary,
-  },
-  headerTagline: {
-    ...t.typography.bodySm,
-    color: t.color.text.muted,
-  },
-
   // ── Stats ──
   statsRow: {
     flexDirection: 'row',
