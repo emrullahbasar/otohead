@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { styles } from '../styles';
 import { tokens } from '../../../config/tokens';
 import { useSuggestionHistory } from '../../../hooks/useSuggestionHistory';
@@ -11,36 +11,39 @@ interface Props {
   history: ReturnType<typeof useSuggestionHistory>;
 }
 
-function HistoryCard({
-  icon, title, subtitle, date, text, expanded, onToggle,
+// Bir sohbet gibi: kullanıcının isteği sağda (kendi rengiyle), uzmanın yanıtı
+// solda ayrı bir balonda — eskiden tek bir rapor kutusu gibiydi, kullanıcı
+// bunun bir mesajlaşma akışı gibi görünmesini istedi.
+function HistoryThread({
+  icon, requestText, date, answer, expanded, onToggle,
 }: {
-  icon: string; title: string; subtitle?: string | null; date: string;
-  text: string; expanded: boolean; onToggle: () => void;
+  icon: string; requestText: string; date: string;
+  answer: string; expanded: boolean; onToggle: () => void;
 }) {
   return (
-    <Pressable style={styles.result} onPress={onToggle}>
-      <View style={styles.resultHeader}>
-        <Text style={styles.resultTitle}>{icon} {title}</Text>
-        {subtitle ? (
-          <Text
-            style={{ color: t.color.text.muted, ...t.typography.caption, marginTop: 4 }}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
-            {subtitle}
-          </Text>
-        ) : null}
-        <Text style={{ color: t.color.text.muted, ...t.typography.caption, marginTop: 2 }}>
-          {date}
-        </Text>
+    <View style={bubbleStyles.thread}>
+      <View style={bubbleStyles.userRow}>
+        <View style={bubbleStyles.userBubble}>
+          <Text style={bubbleStyles.userText}>{icon} {requestText}</Text>
+        </View>
       </View>
-      {expanded && <Text style={styles.resultText}>{text}</Text>}
-      {!expanded && (
-        <Text style={[styles.resultText, { color: t.color.brand.primary, paddingTop: 0 }]}>
-          Yanıtı görmek için dokunun ›
-        </Text>
-      )}
-    </Pressable>
+      <Text style={bubbleStyles.date}>{date}</Text>
+
+      <Pressable style={bubbleStyles.expertRow} onPress={onToggle}>
+        <View style={bubbleStyles.expertBubble}>
+          <Text style={bubbleStyles.expertLabel}>🧑‍🔧 Uzman</Text>
+          <Text
+            style={bubbleStyles.expertText}
+            numberOfLines={expanded ? undefined : 3}
+          >
+            {answer || 'Yanıt metni bulunamadı.'}
+          </Text>
+          {!expanded && (
+            <Text style={bubbleStyles.moreLink}>Devamını oku ›</Text>
+          )}
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -96,13 +99,12 @@ export default function HistoryTab({ history }: Props) {
             🚗 ARAÇ ÖNERİLERİ
           </Text>
           {suggestions.map(item => (
-            <HistoryCard
+            <HistoryThread
               key={item.requestId}
               icon="🚗"
-              title={`${item.budget || ''} TL${item.yearMin ? ` • ${item.yearMin}-${item.yearMax}` : ''}`}
-              subtitle={item.fuel || null}
+              requestText={`${item.budget || ''} TL${item.yearMin ? ` • ${item.yearMin}-${item.yearMax}` : ''}${item.fuel ? ` • ${item.fuel}` : ''}`}
               date={item.createdAt}
-              text={item.recommendation || ''}
+              answer={item.recommendation || ''}
               expanded={expandedKey === `s-${item.requestId}`}
               onToggle={() => toggle(`s-${item.requestId}`)}
             />
@@ -116,13 +118,16 @@ export default function HistoryTab({ history }: Props) {
             🔎 ARAÇ DEĞERLENDİRMELERİ
           </Text>
           {evaluations.map(item => (
-            <HistoryCard
+            <HistoryThread
               key={item.requestId}
               icon="🔎"
-              title={item.ilanNo && item.ilanNo !== 'Belirtilmedi' ? `İlan No: ${item.ilanNo}` : 'Değerlendirme'}
-              subtitle={item.message}
+              requestText={
+                item.ilanNo && item.ilanNo !== 'Belirtilmedi'
+                  ? `İlan No: ${item.ilanNo}`
+                  : (item.message || 'Değerlendirme isteği')
+              }
               date={item.createdAt}
-              text={item.answer || ''}
+              answer={item.answer || ''}
               expanded={expandedKey === `e-${item.requestId}`}
               onToggle={() => toggle(`e-${item.requestId}`)}
             />
@@ -146,3 +151,64 @@ export default function HistoryTab({ history }: Props) {
     </ScrollView>
   );
 }
+
+const bubbleStyles = StyleSheet.create({
+  thread: {
+    paddingHorizontal: t.spacing.base,
+    marginTop: t.spacing.md,
+  },
+  userRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  userBubble: {
+    maxWidth: '85%',
+    backgroundColor: t.color.brand.primary,
+    borderRadius: 18,
+    borderBottomRightRadius: 4,
+    paddingVertical: t.spacing.sm,
+    paddingHorizontal: t.spacing.md,
+  },
+  userText: {
+    ...t.typography.bodySm,
+    color: '#FFFFFF',
+  },
+  date: {
+    ...t.typography.caption,
+    color: t.color.text.muted,
+    textAlign: 'right',
+    marginTop: 4,
+    marginBottom: t.spacing.sm,
+  },
+  expertRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  expertBubble: {
+    maxWidth: '85%',
+    backgroundColor: t.color.bg.surface,
+    borderWidth: 1,
+    borderColor: t.color.border.default,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    paddingVertical: t.spacing.sm,
+    paddingHorizontal: t.spacing.md,
+  },
+  expertLabel: {
+    ...t.typography.caption,
+    color: t.color.brand.primary,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  expertText: {
+    ...t.typography.bodySm,
+    color: t.color.text.secondary,
+    lineHeight: 20,
+  },
+  moreLink: {
+    ...t.typography.caption,
+    color: t.color.brand.primary,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+});
