@@ -11,6 +11,7 @@ import { PremiumGate } from '../components/PremiumGate';
 import { useSimpleRequest } from '../../../hooks/useSimpleRequest';
 import { useConversationHistory } from '../../../hooks/useConversationHistory';
 import { useConsultingEntitlement } from '../../../hooks/useConsultingEntitlement';
+import { useUnreadReply } from '../../../hooks/useUnreadReply';
 
 const t = tokens;
 
@@ -28,10 +29,13 @@ export default function EvaluateTab({ evaluation }: Props) {
   const history = useConversationHistory('evaluation');
   const [showHistory, setShowHistory] = useState(false);
   const entitled = useConsultingEntitlement();
+  const hasAnswer = evaluation.result?.status === 'HAZIR' || evaluation.result?.status === 'GÖRÜLDÜ';
+  const { unread, markSeen } = useUnreadReply('unread_evaluation_reply', evaluation.result?.requestId, hasAnswer);
 
   const openHistory = () => {
     setShowHistory(true);
     history.load();
+    markSeen();
   };
 
   useEffect(() => {
@@ -54,28 +58,25 @@ export default function EvaluateTab({ evaluation }: Props) {
 
   let content: React.ReactNode;
 
-  if (evaluation.result?.status === 'HAZIR' || evaluation.result?.status === 'GÖRÜLDÜ') {
+  if (hasAnswer) {
     content = (
-      <ScrollView contentContainerStyle={{ padding: t.spacing.base }}>
-        <View style={{ alignItems: 'center', marginBottom: t.spacing.xl }}>
-          <Text style={{ fontSize: 44, marginBottom: t.spacing.md }}>🔎</Text>
-          <Text style={[styles.header, { textAlign: 'center' }]}>Değerlendirme Hazır!</Text>
-        </View>
-        <View style={styles.result}>
-          <View style={styles.resultHeader}>
-            <Text style={styles.resultTitle}>✅ Uzman Yanıtı</Text>
-            {evaluation.result.ilanNo && evaluation.result.ilanNo !== 'Belirtilmedi' && (
-              <Text style={{ color: t.color.text.muted, ...t.typography.caption, marginTop: 4 }}>
-                İlan No: {evaluation.result.ilanNo}
-              </Text>
-            )}
-          </View>
-          <Text style={styles.resultText}>{evaluation.result.answer}</Text>
-        </View>
-        <Pressable style={[styles.button, { marginTop: t.spacing.sm }]} onPress={evaluation.reset}>
-          <Text style={styles.buttonText}>Yeni İstek Gönder</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: t.spacing['2xl'] }}>
+        <Text style={{ fontSize: 44, marginBottom: t.spacing.base }}>✅</Text>
+        <Text style={[styles.header, { textAlign: 'center', marginBottom: t.spacing.sm }]}>
+          Yanıtınız Hazır!
+        </Text>
+        <Text style={[styles.headerSub, { textAlign: 'center', lineHeight: 22, marginBottom: t.spacing.xl }]}>
+          Uzman yanıtını Mesajlar bölümünden görüntüleyebilirsiniz.
+        </Text>
+        <Pressable style={styles.button} onPress={openHistory}>
+          <Text style={styles.buttonText}>💬 Mesajları Görüntüle</Text>
         </Pressable>
-      </ScrollView>
+        <Pressable style={{ marginTop: t.spacing.lg, padding: t.spacing.sm }} onPress={evaluation.reset}>
+          <Text style={{ ...t.typography.bodySm, color: t.color.brand.primary, textAlign: 'center', fontWeight: '600' }}>
+            Yeni İstek Gönder
+          </Text>
+        </Pressable>
+      </View>
     );
   } else if (evaluation.result?.status === 'BEKLİYOR') {
     content = (
@@ -128,7 +129,8 @@ export default function EvaluateTab({ evaluation }: Props) {
           İsteğiniz Alındı!
         </Text>
         <Text style={[styles.headerSub, { textAlign: 'center', lineHeight: 22 }]}>
-          Uzman ekibimiz en kısa sürede yanıt verecektir.
+          Uzman ekibimiz en kısa sürede yanıt verecektir. Yanıtınız hazır olduğunda Mesajlar
+          bölümünde görünecektir.
         </Text>
         <Pressable
           style={[styles.button, { marginTop: t.spacing.xl }, evaluation.checkingStatus && styles.buttonDisabled]}
@@ -180,7 +182,7 @@ export default function EvaluateTab({ evaluation }: Props) {
   return (
     <View style={{ flex: 1 }}>
       {content}
-      <MessageHistoryButton onPress={openHistory} />
+      <MessageHistoryButton onPress={openHistory} unread={unread} />
       <ConversationModal
         visible={showHistory}
         onClose={() => setShowHistory(false)}

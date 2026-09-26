@@ -51,7 +51,10 @@ export const useConversationHistory = (target: ConversationTarget) => {
       const items = target === 'suggestion'
         ? await fetchSuggestionHistory()
         : await fetchEvaluationHistory();
-      setEntries(items.map(item => toEntry(target, item)));
+      // Sunucu en yeniyi ilk sırada döndürür; sohbet ekranında en yeni mesaj
+      // EN ALTTA görünmeli (gerçek mesajlaşma uygulamaları gibi), bu yüzden
+      // ters çevriliyor — eskiler yukarıda, en yeni en altta.
+      setEntries(items.map(item => toEntry(target, item)).reverse());
       loadedRef.current = true;
       setLoaded(true);
     } catch (err) {

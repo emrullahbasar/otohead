@@ -9,6 +9,7 @@ import { MessageHistoryButton } from '../components/MessageHistoryButton';
 import { ConversationModal } from '../components/ConversationModal';
 import { useSuggestion } from '../../../hooks/useSuggestion';
 import { useConversationHistory } from '../../../hooks/useConversationHistory';
+import { useUnreadReply } from '../../../hooks/useUnreadReply';
 
 const t = tokens;
 
@@ -20,10 +21,13 @@ export default function FindTab({ suggestion }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const history = useConversationHistory('suggestion');
   const [showHistory, setShowHistory] = useState(false);
+  const hasAnswer = suggestion.suggestion?.status === 'HAZIR' || suggestion.suggestion?.status === 'GÖRÜLDÜ';
+  const { unread, markSeen } = useUnreadReply('unread_suggestion_reply', suggestion.suggestion?.requestId, hasAnswer);
 
   const openHistory = () => {
     setShowHistory(true);
     history.load();
+    markSeen();
   };
 
   // Doğrulama/gönderim hatası sayfanın üstünde gösterilir; kullanıcı aşağıdaki
@@ -34,31 +38,25 @@ export default function FindTab({ suggestion }: Props) {
 
   let content: React.ReactNode;
 
-  if (suggestion.suggestion?.status === 'HAZIR' || suggestion.suggestion?.status === 'GÖRÜLDÜ') {
+  if (hasAnswer) {
     content = (
-      <ScrollView contentContainerStyle={{ padding: t.spacing.base }}>
-        <View style={{ alignItems: 'center', marginBottom: t.spacing.xl }}>
-          <Text style={{ fontSize: 44, marginBottom: t.spacing.md }}>🚗</Text>
-          <Text style={[styles.header, { textAlign: 'center' }]}>Öneriniz Hazır!</Text>
-        </View>
-        <View style={styles.result}>
-          <View style={styles.resultHeader}>
-            <Text style={styles.resultTitle}>✅ Uzman Önerisi</Text>
-            {suggestion.suggestion.budget && (
-              <Text style={{ color: t.color.text.muted, ...t.typography.caption, marginTop: 4 }}>
-                {suggestion.suggestion.budget} TL
-                {suggestion.suggestion.yearMin ? ` • ${suggestion.suggestion.yearMin}-${suggestion.suggestion.yearMax}` : ''}
-                {suggestion.suggestion.fuel     ? ` • ${suggestion.suggestion.fuel}`     : ''}
-                {suggestion.suggestion.caseType ? ` • ${suggestion.suggestion.caseType}` : ''}
-              </Text>
-            )}
-          </View>
-          <Text style={styles.resultText}>{suggestion.suggestion.recommendation}</Text>
-        </View>
-        <Pressable style={[styles.button, { marginTop: t.spacing.sm }]} onPress={suggestion.resetSubmitted}>
-          <Text style={styles.buttonText}>Yeni Öneri İste</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: t.spacing['2xl'] }}>
+        <Text style={{ fontSize: 44, marginBottom: t.spacing.base }}>✅</Text>
+        <Text style={[styles.header, { textAlign: 'center', marginBottom: t.spacing.sm }]}>
+          Yanıtınız Hazır!
+        </Text>
+        <Text style={[styles.headerSub, { textAlign: 'center', lineHeight: 22, marginBottom: t.spacing.xl }]}>
+          Uzman yanıtını Mesajlar bölümünden görüntüleyebilirsiniz.
+        </Text>
+        <Pressable style={styles.button} onPress={openHistory}>
+          <Text style={styles.buttonText}>💬 Mesajları Görüntüle</Text>
         </Pressable>
-      </ScrollView>
+        <Pressable style={{ marginTop: t.spacing.lg, padding: t.spacing.sm }} onPress={suggestion.resetSubmitted}>
+          <Text style={{ ...t.typography.bodySm, color: t.color.brand.primary, textAlign: 'center', fontWeight: '600' }}>
+            Yeni Öneri İste
+          </Text>
+        </Pressable>
+      </View>
     );
   } else if (suggestion.suggestion?.status === 'BEKLİYOR') {
     content = (
@@ -111,7 +109,8 @@ export default function FindTab({ suggestion }: Props) {
           İsteğiniz Alındı!
         </Text>
         <Text style={[styles.headerSub, { textAlign: 'center', lineHeight: 22 }]}>
-          Uzman ekibimiz en kısa sürede araç önerinizi hazırlayacaktır.
+          Uzman ekibimiz en kısa sürede araç önerinizi hazırlayacaktır. Yanıtınız hazır olduğunda
+          Mesajlar bölümünde görünecektir.
         </Text>
         <Pressable
           style={[styles.button, { marginTop: t.spacing.xl }, suggestion.checkingStatus && styles.buttonDisabled]}
@@ -176,7 +175,7 @@ export default function FindTab({ suggestion }: Props) {
   return (
     <View style={{ flex: 1 }}>
       {content}
-      <MessageHistoryButton onPress={openHistory} />
+      <MessageHistoryButton onPress={openHistory} unread={unread} />
       <ConversationModal
         visible={showHistory}
         onClose={() => setShowHistory(false)}
