@@ -160,7 +160,7 @@ function doPost(e) {
     if ((action === 'submit' || action === 'evalSubmit') && !checkActionRateLimit_(data.clientId, 'submit', 5)) {
       return response({ success: false, error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' });
     }
-    if ((action === 'check' || action === 'checkEval') && !checkActionRateLimit_(data.clientId, 'check', 30)) {
+    if ((action === 'check' || action === 'checkEval' || action === 'history') && !checkActionRateLimit_(data.clientId, 'check', 30)) {
       return response({ success: false, error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' });
     }
 
@@ -187,6 +187,13 @@ function doPost(e) {
     }
     if (action === 'checkEval') {
       return handleSimpleCheck({ clientId: data.clientId }, EVAL_SHEET_NAME);
+    }
+
+    // Kullanıcı "Yeni Öneri İste" dediğinde eski cevap yalnızca yerelde
+    // gizleniyordu (dismissed), sunucudaki satır hep duruyor — geçmiş
+    // isteklerini (ve uzman cevaplarını) görebilsinler diye bu liste eklendi.
+    if (action === 'history') {
+      return handleHistory(data);
     }
 
     // Kullanıcı bekleyen (henüz uzman yanıtlamadığı) bir isteğini geri çekip
@@ -448,6 +455,50 @@ function handleSimpleCheck(data, sheetName) {
     requestId: row.requestId || null,
     createdAt: row.createdAt || null,
   });
+}
+
+// Bir clientId'ye ait EN FAZLA `limit` satırı, en yeniden en eskiye doğru
+// döndürür (yalnızca clientId sütununu tarayıp eşleşen satırları okur —
+// tüm tabloyu okumaz). findRowByClientId/findLastEvalRow_'un çoğul hâli.
+function collectRowsByClientId_(sheet, clientId, numCols, limit) {
+  if (!sheet) return [];
+  const last = sheet.getLastRow();
+  if (last < 2) return [];
+
+  const ids = sheet.getRange(2, 2, last - 1, 1).getValues();
+  const rowIndexes = [];
+  for (let i = ids.length - 1; i >= 0 && rowIndexes.length < limit; i--) {
+    if (String(ids[i][0]) === String(clientId)) rowIndexes.push(i + 2);
+  }
+  return rowIndexes.map(rowIndex => sheet.getRange(rowIndex, 1, 1, numCols).getValues()[0]);
+}
+
+const HISTORY_LIMIT = 20;
+
+// "Yeni Öneri İste"/"Yeni İstek Gönder" sonrası eski cevap yalnızca yerelde
+// (dismissedSuggestion/dismissedEvaluation) gizlenir, sunucudaki satır hep
+// kalır — kullanıcı geçmiş uzman cevaplarını buradan görebilsin diye eklendi.
+// Yalnızca uzmanın gerçekten yanıtladığı (HAZIR/GÖRÜLDÜ) kayıtlar listelenir;
+// hâlâ BEKLİYOR olan (aktif) istek zaten normal check/checkEval ile görünür.
+function handleHistory(data) {
+  const isEval = data.target === 'evaluation';
+  const sheetName = isEval ? EVAL_SHEET_NAME : SHEET_NAME;
+  const numCols = isEval ? 7 : 12;
+  const sheet = getSS_().getSheetByName(sheetName);
+  const rows = collectRowsByClientId_(sheet, data.clientId, numCols, HISTORY_LIMIT);
+
+  const items = rows
+    .map(v => isEval ? {
+      requestId: v[0], ilanNo: v[2] || null, message: v[3] || null,
+      createdAt: v[4], status: v[5], answer: v[6] || null,
+    } : {
+      requestId: v[0], budget: v[2], yearMin: v[3], yearMax: v[4],
+      caseType: v[5], fuel: v[6], gear: v[7], description: v[8],
+      createdAt: v[9], status: v[10], recommendation: v[11] || null,
+    })
+    .filter(item => item.status === 'HAZIR' || item.status === 'GÖRÜLDÜ');
+
+  return response({ success: true, items: items });
 }
 
 // ───────────────────────────────────────────────────────────

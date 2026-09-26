@@ -56,6 +56,25 @@ export interface SimpleRequest {
   message:  string;
 }
 
+export interface SuggestionHistoryItem {
+  requestId:      string;
+  budget:         string;
+  yearMin:        string;
+  yearMax:        string;
+  fuel:           string;
+  caseType:       string[] | string;
+  createdAt:      string;
+  recommendation: string | null;
+}
+
+export interface EvaluationHistoryItem {
+  requestId: string;
+  ilanNo:    string | null;
+  message:   string | null;
+  createdAt: string;
+  answer:    string | null;
+}
+
 const AUTH_ERROR = 'Yetkisiz istek.';
 const REGISTER_REFUSED = 'Kayıt oluşturulamadı.';
 const REQUEST_TIMEOUT_MS = 35000;
@@ -312,6 +331,40 @@ async function cancelRequest(action: 'cancel' | 'cancelEval'): Promise<void> {
 
 export const cancelSuggestion = (): Promise<void> => cancelRequest('cancel');
 export const cancelEvaluation = (): Promise<void> => cancelRequest('cancelEval');
+
+// "Yeni Öneri İste"/"Yeni İstek Gönder" sonrası eski cevap yalnızca yerelde
+// gizlenir (bkz. useSuggestionStatus/useSimpleRequest), sunucudaki kayıt hep
+// durur — kullanıcı Öneriler sekmesinden geçmiş uzman cevaplarını görebilsin
+// diye bu liste çekilir.
+export async function fetchSuggestionHistory(): Promise<SuggestionHistoryItem[]> {
+  return withAuthRetry(({ clientId, secret }) => retryOnTransient(async () => {
+    const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'history', clientId, secret, target: 'suggestion' }),
+    });
+    if (!response.ok) throw new Error('Geçmiş yüklenemedi.');
+    const result = await readJson(response);
+    if (!result.success) throw new Error(result.error || 'Bir hata oluştu.');
+    return (result.items || []) as SuggestionHistoryItem[];
+  }));
+}
+
+export async function fetchEvaluationHistory(): Promise<EvaluationHistoryItem[]> {
+  return withAuthRetry(({ clientId, secret }) => retryOnTransient(async () => {
+    const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'history', clientId, secret, target: 'evaluation' }),
+    });
+    if (!response.ok) throw new Error('Geçmiş yüklenemedi.');
+    const result = await readJson(response);
+    if (!result.success) throw new Error(result.error || 'Bir hata oluştu.');
+    return (result.items || []) as EvaluationHistoryItem[];
+  }));
+}
 
 // Telefonun push adresini sunucuya bildirir ki uzman cevabı hazırladığında
 // uygulama kapalıyken bildirim gönderilebilsin. Adres (bu kimlik için)

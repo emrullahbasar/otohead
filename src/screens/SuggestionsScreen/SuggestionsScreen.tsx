@@ -7,18 +7,21 @@ import { useRoute, useNavigation, useFocusEffect, RouteProp } from '@react-navig
 import { MainTabParamList } from '../../navigation/types';
 import { useSuggestion, FUEL_TYPES, GEAR_TYPES } from '../../hooks/useSuggestion';
 import { useSimpleRequest } from '../../hooks/useSimpleRequest';
+import { useSuggestionHistory } from '../../hooks/useSuggestionHistory';
 import { SelectionModal } from './components/SelectionModal';
 import FindTab from './tabs/FindTab';
 import EvaluateTab from './tabs/EvaluateTab';
+import HistoryTab from './tabs/HistoryTab';
 import { styles } from './styles';
 import { tokens } from '../../config/tokens';
 
 const t = tokens;
-type TabType = 'find' | 'evaluate';
+type TabType = 'find' | 'evaluate' | 'history';
 
 const TABS: { key: TabType; label: string }[] = [
-  { key: 'find',     label: 'Kriterlere Göre Bul'      },
-  { key: 'evaluate', label: 'Araç Değerlendirme' },
+  { key: 'find',     label: 'Kriterlere Göre Bul' },
+  { key: 'evaluate', label: 'Değerlendirme'       },
+  { key: 'history',  label: 'Öneriler'            },
 ];
 
 export default function SuggestionsScreen() {
@@ -27,6 +30,7 @@ export default function SuggestionsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('find');
   const suggestion = useSuggestion();
   const evaluation = useSimpleRequest();
+  const history    = useSuggestionHistory();
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -95,7 +99,11 @@ export default function SuggestionsScreen() {
             style={[tabStyles.tab, activeTab === tab.key && tabStyles.tabActive]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[tabStyles.label, activeTab === tab.key && tabStyles.labelActive]}>
+            <Text
+              style={[tabStyles.label, activeTab === tab.key && tabStyles.labelActive]}
+              numberOfLines={2}
+              allowFontScaling={false}
+            >
               {tab.label}
             </Text>
           </Pressable>
@@ -105,6 +113,7 @@ export default function SuggestionsScreen() {
       <View style={{ flex: 1 }}>
         {activeTab === 'find'     && <FindTab     suggestion={suggestion} />}
         {activeTab === 'evaluate' && <EvaluateTab evaluation={evaluation} />}
+        {activeTab === 'history'  && <HistoryTab  history={history} />}
       </View>
 
       <SelectionModal
@@ -135,7 +144,7 @@ const tabStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: t.spacing.md,
-    paddingHorizontal: t.spacing.sm,
+    paddingHorizontal: 2,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -144,6 +153,7 @@ const tabStyles = StyleSheet.create({
   },
   label: {
     ...t.typography.bodySm,
+    fontSize: 10,
     color: t.color.text.muted,
     fontWeight: '500',
     textAlign: 'center',
