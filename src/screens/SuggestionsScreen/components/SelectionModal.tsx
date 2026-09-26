@@ -15,6 +15,9 @@ interface SelectionModalProps {
   setCaseType:  (val: string[]) => void;
   fuel:         string[];
   gear:         string[];
+  // Hiç dokunulmamışken "Fark Etmez" zaten seçiliymiş gibi ✓ görünmesin diye
+  // (kullanıcı formu kapatınca "seçim zorunlu" hatasıyla şaşırıyordu).
+  touched:      { caseType: boolean; fuel: boolean; gear: boolean };
 }
 
 export const SelectionModal = ({
@@ -23,6 +26,7 @@ export const SelectionModal = ({
   setFuel, setGear,
   caseType, setCaseType,
   fuel, gear,
+  touched,
 }: SelectionModalProps) => {
 
   if (modalType === null) return null;
@@ -54,9 +58,10 @@ export const SelectionModal = ({
     onToggle: (type: string) => void,
     onDone: () => void,
     title: string,
+    isTouched: boolean,
     subtitle?: string,
   ) => (
-    <Modal visible transparent animationType="slide">
+    <Modal visible transparent animationType="slide" onRequestClose={onDone}>
       {/* Dışarıya basınca kapat */}
       <Pressable style={styles.modalOverlay} onPress={onDone}>
         <Pressable onPress={e => e.stopPropagation()}>
@@ -70,7 +75,7 @@ export const SelectionModal = ({
             <ScrollView keyboardShouldPersistTaps="handled">
               {items.map(type => {
                 const isSelected = type === 'Fark Etmez'
-                  ? selected.length === 0
+                  ? isTouched && selected.length === 0
                   : selected.includes(type);
                 return (
                   <Pressable
@@ -104,6 +109,7 @@ export const SelectionModal = ({
       toggleCaseType,
       () => setModalType(null),
       'Kasa Tipi',
+      touched.caseType,
       'Birden fazla seçebilirsiniz',
     );
   }
@@ -115,6 +121,7 @@ export const SelectionModal = ({
       toggleFuel,
       () => setModalType(null),
       'Yakıt Tipi',
+      touched.fuel,
       'Birden fazla seçebilirsiniz',
     );
   }
@@ -126,6 +133,7 @@ export const SelectionModal = ({
     toggleGear,
     () => setModalType(null),
     'Vites Tipi',
+    touched.gear,
     'Birden fazla seçebilirsiniz',
   );
 };

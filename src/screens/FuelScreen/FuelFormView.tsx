@@ -5,6 +5,10 @@ import { styles } from './styles';
 import FuelReceiptScanner from './FuelReceiptScanner';
 import { FuelForm } from '../../hooks/useFuelForm';
 import { formatDateToString, parseDateString } from '../../utils/dateUtils';
+import { parseWholeNumberInput } from '../../utils/numberFormat';
+import { tokens } from '../../config/tokens';
+
+const t = tokens;
 
 interface Props {
   record: FuelForm;
@@ -25,55 +29,57 @@ export default function FuelFormView({ record, updateField, onSave, onReceiptSca
       {/* ✅ YENİ — Fiş tarayıcı */}
       <FuelReceiptScanner onDataExtracted={onReceiptScanned} />
 
-      <Text style={styles.label}>Tarih</Text>
+      <Text style={styles.label}>TARİH</Text>
       <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
         <Text style={{ color: record.date ? '#020202' : '#52525B' }}>
           📅 {record.date || `Bugün (${todayLabel})`}
         </Text>
       </Pressable>
 
-      <Text style={styles.label}>Yakıt Litre Fiyatı (TL)</Text>
+      <Text style={styles.label}>YAKIT LİTRE FİYATI (TL)</Text>
       <TextInput
         style={styles.input}
         keyboardType="decimal-pad"
         placeholder="Örn: 42.50"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={t.color.text.muted}
         value={record.pricePerLiter}
         onChangeText={(v) => updateField('pricePerLiter', v)}
+        maxLength={10}
       />
 
-      <Text style={styles.label}>Alınan Yakıt (Litre)</Text>
+      <Text style={styles.label}>ALINAN YAKIT (LİTRE)</Text>
       <TextInput
         style={styles.input}
         keyboardType="decimal-pad"
         placeholder="Örn: 45"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={t.color.text.muted}
         value={record.totalLiters}
         onChangeText={(v) => updateField('totalLiters', v)}
+        maxLength={10}
       />
 
       {hasHistory && (
         <>
-          <Text style={styles.label}>Önceki Kilometre</Text>
+          <Text style={styles.label}>ÖNCEKİ KİLOMETRE</Text>
           <TextInput
             style={[styles.input, styles.autoFillInput]}
             keyboardType="number-pad"
             value={record.previousKm}
             placeholder="Önceki kayıttaki kilometre"
-            placeholderTextColor="#aaa"
-            onChangeText={(v) => updateField('previousKm', v)}
+            placeholderTextColor={t.color.text.muted}
+            onChangeText={(v) => updateField('previousKm', parseWholeNumberInput(v))}
           />
         </>
       )}
 
-      <Text style={styles.label}>Güncel Kilometre</Text>
+      <Text style={styles.label}>GÜNCEL KİLOMETRE</Text>
       <TextInput
         style={styles.input}
         keyboardType="number-pad"
         placeholder="Aracın şu anki KM'si"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={t.color.text.muted}
         value={record.currentKm}
-        onChangeText={(v) => updateField('currentKm', v)}
+        onChangeText={(v) => updateField('currentKm', parseWholeNumberInput(v))}
       />
       {!hasHistory && (
         <Text style={styles.firstRecordNote}>
@@ -81,11 +87,11 @@ export default function FuelFormView({ record, updateField, onSave, onReceiptSca
         </Text>
       )}
 
-      <Text style={styles.label}>İstasyon (isteğe bağlı)</Text>
+      <Text style={styles.label}>İSTASYON (İSTEĞE BAĞLI)</Text>
       <TextInput
         style={styles.input}
         placeholder="Örn: Shell, BP, Opet"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={t.color.text.muted}
         value={record.station}
         onChangeText={(v) => updateField('station', v)}
       />
@@ -119,9 +125,9 @@ export default function FuelFormView({ record, updateField, onSave, onReceiptSca
         onCancel={() => setShowDatePicker(false)}
         confirmTextIOS="Tamam"
         cancelTextIOS="Vazgeç"
-        pickerContainerStyleIOS={{ backgroundColor: '#1c1c1e' }}
-        textColor="#FFFFFF"
-        isDarkModeEnabled
+        pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
+        textColor="#0D1520"
+        isDarkModeEnabled={false}
       />
     </View>
   );

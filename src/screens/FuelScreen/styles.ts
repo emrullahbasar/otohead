@@ -129,7 +129,9 @@ export const styles = StyleSheet.create({
     color: t.color.text.muted,
     marginBottom: t.spacing.xs,
     marginTop: t.spacing.md,
-    textTransform: 'uppercase',
+    // textTransform:'uppercase' KALDIRILDI — RN'in yerel-duyarsız büyütmesi
+    // Türkçe "i"yi "I" yapıyordu ("İSTASYON" değil "ISTASYON"). Metinler artık
+    // zaten büyük harfle ve doğru Türkçe karakterle yazılıyor.
     letterSpacing: 0.6,
   },
 

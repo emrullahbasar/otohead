@@ -11,6 +11,7 @@ type FilterType = 'last5' | '1month' | '6months' | '1year';
 
 interface Props {
   filteredHistory: FuelRecord[];
+  historyLength:   number; // filtrelenmemiş toplam kayıt sayısı
   filter:          FilterType;
   setFilter:       (f: FilterType) => void;
   onDelete:        (id: string) => void;
@@ -23,8 +24,9 @@ const FILTER_LABELS: Record<FilterType, string> = {
   '1year':  '1 Yıl',
 };
 
-export default function FuelHistoryView({ filteredHistory, filter, setFilter, onDelete }: Props) {
-  if (filteredHistory.length === 0) {
+export default function FuelHistoryView({ filteredHistory, historyLength, filter, setFilter, onDelete }: Props) {
+  // Hiç yakıt kaydı yoksa filtre çubuğunu da gösterme.
+  if (historyLength === 0) {
     return <Text style={styles.emptyText}>Henüz yakıt kaydı bulunmuyor.</Text>;
   }
 
@@ -57,9 +59,15 @@ export default function FuelHistoryView({ filteredHistory, filter, setFilter, on
         </View>
       </View>
 
-      {filteredHistory.map(item => (
-        <FuelHistoryCard key={item.id} item={item} onDelete={onDelete} />
-      ))}
+      {/* Bu filtrede kayıt yoksa filtre çubuğu görünür kalır; kullanıcı başka
+          bir filtreye dönebilir (eskiden bu durumda çubuk tamamen kayboluyordu). */}
+      {filteredHistory.length === 0 ? (
+        <Text style={styles.emptyText}>Bu dönemde kayıt yok.</Text>
+      ) : (
+        filteredHistory.map(item => (
+          <FuelHistoryCard key={item.id} item={item} onDelete={onDelete} />
+        ))
+      )}
     </>
   );
 }

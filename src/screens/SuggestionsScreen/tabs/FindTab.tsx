@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator,
+  View, Text, ScrollView, Pressable, ActivityIndicator, Alert,
 } from 'react-native';
 import { styles } from '../styles';
 import { tokens } from '../../../config/tokens';
@@ -75,6 +75,22 @@ export default function FindTab({ suggestion }: Props) {
             ⚠️ {suggestion.statusError}
           </Text>
         )}
+        <Pressable
+          style={{ marginTop: t.spacing.lg, padding: t.spacing.sm }}
+          disabled={suggestion.cancelling}
+          onPress={() => Alert.alert(
+            'İsteği İptal Et',
+            'Bekleyen öneri isteğinizi geri çekmek istediğinize emin misiniz? Uzman ekibimiz bu isteği artık hazırlamayacak.',
+            [
+              { text: 'Vazgeç', style: 'cancel' },
+              { text: 'İsteği İptal Et', style: 'destructive', onPress: suggestion.cancelPending },
+            ],
+          )}
+        >
+          <Text style={{ ...t.typography.bodySm, color: t.color.danger.default, textAlign: 'center' }}>
+            {suggestion.cancelling ? 'İptal ediliyor...' : 'İsteği İptal Et'}
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -108,6 +124,8 @@ export default function FindTab({ suggestion }: Props) {
       ref={scrollRef}
       contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
       keyboardShouldPersistTaps="handled"
+      // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <View style={{ padding: t.spacing.base, paddingBottom: 0 }}>

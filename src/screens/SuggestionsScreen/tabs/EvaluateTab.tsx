@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator,
+  View, Text, ScrollView, Pressable, ActivityIndicator, Alert,
 } from 'react-native';
 import { styles } from '../styles';
 import { tokens } from '../../../config/tokens';
@@ -70,6 +70,22 @@ export default function EvaluateTab({ evaluation }: Props) {
             ⚠️ {evaluation.statusError}
           </Text>
         )}
+        <Pressable
+          style={{ marginTop: t.spacing.lg, padding: t.spacing.sm }}
+          disabled={evaluation.cancelling}
+          onPress={() => Alert.alert(
+            'İsteği İptal Et',
+            'Bekleyen değerlendirme isteğinizi geri çekmek istediğinize emin misiniz? Uzman ekibimiz bu isteği artık incelemeyecek.',
+            [
+              { text: 'Vazgeç', style: 'cancel' },
+              { text: 'İsteği İptal Et', style: 'destructive', onPress: evaluation.cancelPending },
+            ],
+          )}
+        >
+          <Text style={{ ...t.typography.bodySm, color: t.color.danger.default, textAlign: 'center' }}>
+            {evaluation.cancelling ? 'İptal ediliyor...' : 'İsteği İptal Et'}
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -103,6 +119,8 @@ export default function EvaluateTab({ evaluation }: Props) {
       ref={scrollRef}
       contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
       keyboardShouldPersistTaps="handled"
+      // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+      keyboardDismissMode="on-drag"
       showsVerticalScrollIndicator={false}
     >
       <View style={{ padding: t.spacing.base, paddingBottom: 0 }}>

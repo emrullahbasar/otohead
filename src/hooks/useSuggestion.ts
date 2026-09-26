@@ -66,6 +66,8 @@ export const useSuggestion = () => {
     forceCheck:    statusHook.forceCheck,
     checkOnMount:  statusHook.checkOnMount,
     resetSubmitted: statusHook.resetStatus,
+    cancelling:    statusHook.cancelling,
+    cancelPending: statusHook.cancelPending,
     // Search
     loading,
     error,

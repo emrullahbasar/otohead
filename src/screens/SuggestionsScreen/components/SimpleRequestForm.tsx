@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, Pressable, ActivityIndicator,
 } from 'react-native';
 import { styles } from '../styles';
+import { trUpper } from '../../../utils/textCase';
 
 interface Props {
   ilanNo:       string;
@@ -40,13 +41,13 @@ export const SimpleRequestForm = ({
         </View>
       )}
 
-      <Text style={styles.label}>{ilanNoLabel}</Text>
+      <Text style={styles.label}>{trUpper(ilanNoLabel)}</Text>
       <TextInput
         style={styles.input}
         placeholder="örn. 1181405293"
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={ilanNo}
-        onChangeText={setIlanNo}
+        onChangeText={t => setIlanNo(t.replace(/\D/g, ''))}
         maxLength={20}
         keyboardType="numeric"
         returnKeyType="next"
@@ -55,7 +56,7 @@ export const SimpleRequestForm = ({
         editable={!loading}
       />
 
-      <Text style={styles.label}>{messageLabel}</Text>
+      <Text style={styles.label}>{trUpper(messageLabel)}</Text>
       <TextInput
         ref={messageRef}
         style={[styles.input, styles.multilineInput]}
@@ -72,6 +73,9 @@ export const SimpleRequestForm = ({
         blurOnSubmit
         editable={!loading}
       />
+      <Text style={styles.fieldHint}>
+        Lütfen isim, telefon numarası gibi kişisel bilgi yazmayın.
+      </Text>
 
       <Pressable
         style={[styles.button, loading && styles.buttonDisabled]}

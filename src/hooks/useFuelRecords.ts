@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { FuelRecord, FuelAnalysis } from '../types';
 import { getFuelRecords, addFuelRecord, deleteFuelRecord } from '../services/fuelApi';
@@ -22,9 +22,14 @@ export const useFuelRecords = (
   const [analysis,        setAnalysis]        = useState<FuelAnalysis | null>(null);
   const [pendingAnalysis, setPendingAnalysis] = useState(false);
   const [filter,          setFilter]          = useState<FilterType>('last5');
+  // Araç hızlı değiştirilirse önceki (yavaş kalan) sorgunun sonucu, yeni aracın
+  // sonucunun ÜSTÜNE yazmasın diye yalnızca en son başlatılan istek uygulanır.
+  const requestSeqRef = useRef(0);
 
   const loadRecordsForCar = useCallback(async (carId: string) => {
+    const seq = ++requestSeqRef.current;
     const records = await getFuelRecords(carId);
+    if (seq !== requestSeqRef.current) return; // araya başka bir araç seçimi girdi
     setHistory(records);
     const { analysis: a, pending } = computeAnalysis(records);
     setAnalysis(a);

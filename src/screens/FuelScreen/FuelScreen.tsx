@@ -32,6 +32,8 @@ export default function FuelScreen() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+        keyboardDismissMode="on-drag"
       >
         <View style={styles.headerBox}>
           <Text style={styles.mainTitle}>Yakıt Takip</Text>
@@ -50,7 +52,7 @@ export default function FuelScreen() {
           </View>
         ) : (
           <View style={carStyles.wrapper}>
-            <Text style={carStyles.label}>Araç Seçin</Text>
+            <Text style={carStyles.label}>ARAÇ SEÇİN</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -94,6 +96,7 @@ export default function FuelScreen() {
             />
             <FuelHistoryView
               filteredHistory={filteredHistory}
+              historyLength={history.length}
               filter={filter}
               setFilter={setFilter}
               onDelete={handleDeleteRecord}
@@ -136,7 +139,6 @@ const carStyles = StyleSheet.create({
   label: {
     ...t.typography.label,
     color: t.color.text.muted,
-    textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: t.spacing.md,
   },

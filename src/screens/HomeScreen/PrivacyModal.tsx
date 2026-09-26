@@ -36,18 +36,24 @@ export default function PrivacyModal({ visible, onClose }: Props) {
   };
 
   const requestDeletion = async () => {
-    const subject = encodeURIComponent('OtoHead - Verilerimin silinmesi talebi');
-    const body = encodeURIComponent(
+    const subject = 'OtoHead - Verilerimin silinmesi talebi';
+    const bodyText =
       `Cihaz kimliğim: ${clientId}\n\n` +
-      'Bu cihaza ait Araç Danışmanlık ve Değerlendirme kayıtlarımın silinmesini talep ediyorum.',
-    );
+      'Bu cihaza ait Araç Danışmanlık ve Değerlendirme kayıtlarımın silinmesini talep ediyorum.';
     try {
-      await Linking.openURL(`mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`);
+      await Linking.openURL(`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`);
     } catch {
-      Alert.alert(
-        'E-posta uygulaması bulunamadı',
-        `Silme talebinizi ${CONTACT_EMAIL} adresine, cihaz kimliğinizi belirterek gönderebilirsiniz.`,
-      );
+      // E-posta uygulaması yoksa (bazı Android cihazlarda Gmail'e giriş
+      // yapılmamış olabilir) kullanıcı metni hiçbir şekilde alamıyordu —
+      // paylaşım sayfası üzerinden (ör. Mesajlar, Notlar, "Kopyala") iletsin.
+      try {
+        await Share.share({ message: `${CONTACT_EMAIL}\nKonu: ${subject}\n\n${bodyText}` });
+      } catch {
+        Alert.alert(
+          'E-posta uygulaması bulunamadı',
+          `Silme talebinizi ${CONTACT_EMAIL} adresine, cihaz kimliğinizi (${clientId}) belirterek gönderebilirsiniz.`,
+        );
+      }
     }
   };
 
@@ -62,7 +68,7 @@ export default function PrivacyModal({ visible, onClose }: Props) {
         </View>
 
         <ScrollView contentContainerStyle={[s.content, { paddingBottom: insets.bottom + t.spacing['2xl'] }]}>
-          <Text style={s.sectionTitle}>Verileriniz nerede?</Text>
+          <Text style={s.sectionTitle}>VERİLERİNİZ NEREDE?</Text>
           <Text style={s.body}>
             Araçlarınız, bakım ve yakıt kayıtlarınız yalnızca bu telefonda tutulur, sunucuya gönderilmez.
             Fiş fotoğrafları cihazınızda okunur ve hiçbir yere gönderilmez.
@@ -72,7 +78,7 @@ export default function PrivacyModal({ visible, onClose }: Props) {
             cihaz kimliğiyle birlikte uzman ekibimize iletilir.
           </Text>
 
-          <Text style={s.sectionTitle}>Cihaz kimliğiniz</Text>
+          <Text style={s.sectionTitle}>CİHAZ KİMLİĞİNİZ</Text>
           <View style={s.idBox}>
             <Text style={s.idText} selectable>{clientId || 'Yükleniyor...'}</Text>
           </View>
@@ -129,7 +135,6 @@ const s = StyleSheet.create({
   sectionTitle: {
     ...t.typography.label,
     color: t.color.text.muted,
-    textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginTop: t.spacing.lg,
     marginBottom: t.spacing.sm,

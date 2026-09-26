@@ -3,12 +3,9 @@ import { View, Text, Pressable } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { MaintenanceRecord } from '../../../types';
 import { styles } from '../styles';
+import { formatWholeNumberDisplay, formatAmountDisplay } from '../../../utils/numberFormat';
 
-const formatKm = (km: string): string => {
-  const num = parseInt(km, 10);
-  if (isNaN(num)) return km;
-  return num.toLocaleString('tr-TR');
-};
+const formatKm = formatWholeNumberDisplay;
 
 interface Props {
   record: MaintenanceRecord;
@@ -50,7 +47,7 @@ export const RecordCard = ({ record, onDelete, onPress, remainingKm }: Props) =>
           : null
         }
         {record.price
-          ? <Text style={styles.recordDetail}>💰 {formatKm(record.price)} ₺</Text>
+          ? <Text style={styles.recordDetail}>💰 {formatAmountDisplay(record.price)} ₺</Text>
           : null
         }
       </Pressable>

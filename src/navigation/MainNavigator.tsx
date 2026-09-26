@@ -41,7 +41,14 @@ function TabItem({ name, focused }: { name: keyof MainTabParamList; focused: boo
         <Text style={[tab.iconEmoji, focused && tab.iconActive]}>
         </Text>
       )}
-      <Text style={[tab.label, focused && tab.labelActive]}>
+      {/* Sekme çubuğu sabit bir alan; sistem yazı boyutu büyütülünce (erişilebilirlik)
+          etiketler taşıp kesiliyordu ("Ana", "Yakıt", "Araç Yö"...). Native
+          sekme çubukları da genelde bundan bağımsızdır — burada da sabit tutuyoruz. */}
+      <Text
+        style={[tab.label, focused && tab.labelActive]}
+        allowFontScaling={false}
+        numberOfLines={1}
+      >
         {TAB_LABELS[name]}
       </Text>
     </View>

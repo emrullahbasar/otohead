@@ -12,16 +12,21 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { styles } from '../styles';
 import { MaintenanceRecord } from '../../../types';
+import { KM_INTERVALS } from '../../../notifications';
+import {
+  parseWholeNumberInput, formatWholeNumberDisplay,
+  parseAmountInput, formatAmountDisplay,
+} from '../../../utils/numberFormat';
 
-export const formatNumber = (value: string | number): string => {
-  const raw = String(value).replace(/,/g, '');
-  if (!raw) return '';
-  const num = parseInt(raw, 10);
-  if (isNaN(num)) return '';
-  return num.toLocaleString('en-US');
-};
+// Km gibi tam sayı alanları için (yalnızca rakam; nokta/virgül ayıklanır, tr-TR
+// binlik nokta ile gösterilir — kartlarla aynı biçim). İsimler geriye dönük
+// uyumluluk için korunuyor, birçok ekran burdan import ediyor.
+export const formatNumber = formatWholeNumberDisplay;
+export const parseNumber  = parseWholeNumberInput;
 
-export const parseNumber = (value: string): string => value.replace(/,/g, '');
+// Ücret gibi ondalıklı alanlar için (virgül ondalık, nokta binlik — Türkçe kural).
+export const formatAmount = formatAmountDisplay;
+export const parseAmount  = parseAmountInput;
 
 export const parseDateString = (dateStr: string): Date => {
   if (!dateStr) return new Date();
@@ -88,10 +93,30 @@ export const RecordDetailModal = ({
     detailRecord.type === 'Sigorta' ||
     detailRecord.type === 'Kasko';
 
-  const isPeriyodik = detailRecord.type === 'Periyodik Bakım';
+  const interval = KM_INTERVALS[editType || detailRecord.type];
 
   return (
-    <Modal visible={!!detailRecord} transparent animationType="fade">
+    <Modal
+      visible={!!detailRecord}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        // Android'de donanım "Geri" tuşu — düzenleme modundaysa "Vazgeç" gibi
+        // davranır (değişiklikleri at, görünüm moduna dön); değilse pencereyi kapatır.
+        if (isEditing) {
+          setEditType(detailRecord.type);
+          setEditDate(detailRecord.date);
+          setEditNextDate(detailRecord.nextDate || '');
+          setEditKm(detailRecord.km);
+          setEditNextKm(detailRecord.nextKm || '');
+          setEditNote(detailRecord.note || '');
+          setEditPrice(detailRecord.price || '');
+          setIsEditing(false);
+        } else {
+          setDetailRecord(null);
+        }
+      }}
+    >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -112,11 +137,13 @@ export const RecordDetailModal = ({
               style={styles.detailContent}
               contentContainerStyle={{ paddingBottom: 24 }}
               keyboardShouldPersistTaps="handled"
+              // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
               {isEditing ? (
                 <>
-                  <Text style={styles.detailLabel}>İşlem Türü</Text>
+                  <Text style={styles.detailLabel}>İŞLEM TÜRÜ</Text>
                   <TextInput
                     style={styles.detailInput}
                     value={editType}
@@ -127,7 +154,7 @@ export const RecordDetailModal = ({
                     placeholderTextColor="#868686"
                   />
 
-                  <Text style={styles.detailLabel}>Tarih</Text>
+                  <Text style={styles.detailLabel}>TARİH</Text>
                   <Pressable
                     style={styles.detailInput}
                     onPress={() => setShowEditDatePicker(true)}
@@ -139,7 +166,7 @@ export const RecordDetailModal = ({
 
                   {isDateType && (
                     <>
-                      <Text style={styles.detailLabel}>Hatırlatma Tarihi</Text>
+                      <Text style={styles.detailLabel}>HATIRLATMA TARİHİ</Text>
                       <Pressable
                         style={styles.detailInput}
                         onPress={() => setShowEditNextDatePicker(true)}
@@ -151,7 +178,7 @@ export const RecordDetailModal = ({
                     </>
                   )}
 
-                  <Text style={styles.detailLabel}>Kilometre</Text>
+                  <Text style={styles.detailLabel}>KİLOMETRE</Text>
                   <TextInput
                     ref={kmRef}
                     style={styles.detailInput}
@@ -161,14 +188,14 @@ export const RecordDetailModal = ({
                     placeholderTextColor="#868686"
                     returnKeyType="next"
                     onSubmitEditing={() =>
-                      isPeriyodik ? nextKmRef.current?.focus() : noteRef.current?.focus()
+                      interval ? nextKmRef.current?.focus() : noteRef.current?.focus()
                     }
                     blurOnSubmit={false}
                   />
 
-                  {isPeriyodik && (
+                  {interval && (
                     <>
-                      <Text style={styles.detailLabel}>Sonraki Bakım Km</Text>
+                      <Text style={styles.detailLabel}>SONRAKİ BAKIM KM</Text>
                       <TextInput
                         ref={nextKmRef}
                         style={styles.detailInput}
@@ -183,7 +210,7 @@ export const RecordDetailModal = ({
                     </>
                   )}
 
-                  <Text style={styles.detailLabel}>Not</Text>
+                  <Text style={styles.detailLabel}>NOT</Text>
                   <TextInput
                     ref={noteRef}
                     style={styles.detailInput}
@@ -195,13 +222,13 @@ export const RecordDetailModal = ({
                     blurOnSubmit={false}
                   />
 
-                  <Text style={styles.detailLabel}>Ücret (₺)</Text>
+                  <Text style={styles.detailLabel}>ÜCRET (₺)</Text>
                   <TextInput
                     ref={priceRef}
                     style={styles.detailInput}
-                    value={formatNumber(editPrice)}
-                    onChangeText={(t) => setEditPrice(parseNumber(t))}
-                    keyboardType="numeric"
+                    value={formatAmount(editPrice)}
+                    onChangeText={(t) => setEditPrice(parseAmount(t))}
+                    keyboardType="decimal-pad"
                     placeholderTextColor="#868686"
                     returnKeyType="done"
                   />
@@ -231,7 +258,7 @@ export const RecordDetailModal = ({
                   {detailRecord.price ? (
                     <View style={styles.detailRow}>
                       <Text style={styles.detailRowLabel}>💰 Ücret</Text>
-                      <Text style={styles.detailRowValue}>{formatNumber(String(detailRecord.price))} ₺</Text>
+                      <Text style={styles.detailRowValue}>{formatAmount(String(detailRecord.price))} ₺</Text>
                     </View>
                   ) : null}
                   {detailRecord.note ? (
@@ -250,7 +277,22 @@ export const RecordDetailModal = ({
                   <Pressable style={styles.detailSaveBtn} onPress={handleSaveEdit}>
                     <Text style={styles.detailSaveBtnText}>Kaydet</Text>
                   </Pressable>
-                  <Pressable style={styles.detailCancelBtn} onPress={() => setIsEditing(false)}>
+                  <Pressable
+                    style={styles.detailCancelBtn}
+                    onPress={() => {
+                      // Yazılmış ama kaydedilmemiş değişiklikleri at, kayıtlı hale dön
+                      // (eskiden "Vazgeç" alanları sıfırlamıyordu; tekrar Düzenle'ye
+                      // girince yarım kalmış metinler öylece duruyordu).
+                      setEditType(detailRecord.type);
+                      setEditDate(detailRecord.date);
+                      setEditNextDate(detailRecord.nextDate || '');
+                      setEditKm(detailRecord.km);
+                      setEditNextKm(detailRecord.nextKm || '');
+                      setEditNote(detailRecord.note || '');
+                      setEditPrice(detailRecord.price || '');
+                      setIsEditing(false);
+                    }}
+                  >
                     <Text style={styles.detailCancelBtnText}>Vazgeç</Text>
                   </Pressable>
                 </>
@@ -277,9 +319,9 @@ export const RecordDetailModal = ({
         onCancel={() => setShowEditDatePicker(false)}
         confirmTextIOS="Tamam"
         cancelTextIOS="Vazgeç"
-        pickerContainerStyleIOS={{ backgroundColor: '#1c1c1e' }}
-        textColor="#FFFFFF"
-        isDarkModeEnabled={true}
+        pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
+        textColor="#0D1520"
+        isDarkModeEnabled={false}
       />
 
       <DateTimePickerModal
@@ -294,9 +336,9 @@ export const RecordDetailModal = ({
         onCancel={() => setShowEditNextDatePicker(false)}
         confirmTextIOS="Tamam"
         cancelTextIOS="Vazgeç"
-        pickerContainerStyleIOS={{ backgroundColor: '#1c1c1e' }}
-        textColor="#FFFFFF"
-        isDarkModeEnabled={true}
+        pickerContainerStyleIOS={{ backgroundColor: '#FFFFFF' }}
+        textColor="#0D1520"
+        isDarkModeEnabled={false}
       />
     </Modal>
   );

@@ -3,6 +3,7 @@ import { getClientId, getConfig, setConfig } from '../services/database';
 import {
   checkSuggestion,
   markAsSeen,
+  cancelSuggestion,
   syncPushToken,
   SuggestionResult,
 } from '../services/suggestionApi';
@@ -30,6 +31,7 @@ export const useSuggestionStatus = () => {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [submitted,      setSubmitted]      = useState(false);
   const [statusError,    setStatusError]    = useState('');
+  const [cancelling,     setCancelling]     = useState(false);
   const checkedRef    = useRef(false);
   const seqRef        = useRef(0);      // yalnızca en son başlatılan sorgunun sonucu uygulanır
   const inFlightRef   = useRef(false);
@@ -129,6 +131,12 @@ export const useSuggestionStatus = () => {
   const resetStatus = useCallback(() => {
     const id = suggestionRef.current?.requestId;
     if (id) setConfig(DISMISSED_KEY, id).catch(() => {});
+    // "Yeni Öneri İste" burada tetiklenir — otomatik markAsSeen çağrısı daha
+    // önce ağ hatasıyla başarısız olduysa (bkz. runCheck), sunucuda durum hâlâ
+    // HAZIR kalıp yeni istek "Zaten aktif bir öneriniz var" diye reddedilirdi.
+    // Kullanıcı zaten cevabı görüp devam etmek istediği için burada bir kez
+    // daha (best-effort) deneriz.
+    if (clientId) markAsSeen(clientId).catch(() => {});
     seqRef.current++;
     inFlightRef.current = false;
     setCheckingStatus(false);
@@ -140,11 +148,34 @@ export const useSuggestionStatus = () => {
     checkedRef.current = false;
   }, []);
 
+  // Uzman hiç yanıtlamazsa kullanıcı sonsuza kadar "Öneriniz Hazırlanıyor"
+  // ekranında kilitli kalmasın diye bekleyen isteği geri çeker ve yeni bir
+  // istek göndermesine izin verir.
+  const cancelPending = useCallback(async () => {
+    setCancelling(true);
+    setStatusError('');
+    try {
+      await cancelSuggestion();
+      seqRef.current++;
+      inFlightRef.current = false;
+      setSubmitted(false);
+      setSuggestion(null);
+      persist(NO_SUGGESTION);
+      knownNoneRef.current = true;
+      checkedRef.current = false;
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'İstek iptal edilemedi.');
+    } finally {
+      setCancelling(false);
+    }
+  }, []);
+
   return {
     clientId,
     suggestion, setSuggestion,
     checkingStatus, statusError,
     submitted, setSubmitted,
+    cancelling, cancelPending,
     checkedRef,
     checkStatus, forceCheck,
     checkOnMount,

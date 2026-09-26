@@ -1,6 +1,7 @@
-import { getDB } from './database';
+import { getDB, getRecordNotificationIdsForCar, clearRecordNotificationRowsForCar } from './database';
 import { Car, MaintenanceRecord } from '../types';
 import { DatabaseError } from '../config/errors';
+import { cancelNotificationIds } from '../notifications';
 
 // DB'den gelen ham satır tipleri
 interface CarRow {
@@ -76,6 +77,13 @@ export const saveCar = async (car: Car): Promise<void> => {
 export const deleteCar = async (carId: string): Promise<void> => {
   try {
     const db = await getDB();
+    // "Aracı ve tüm kayıtlarını sil" uyarısına rağmen eskiden yakıt kayıtları
+    // ve kurulmuş hatırlatma alarmları silinmeden kalıyordu (ulaşılamaz veri +
+    // silinen bir araç için yıllar sonra bildirim). Hepsini burada temizle.
+    const notificationIds = await getRecordNotificationIdsForCar(carId);
+    await cancelNotificationIds(notificationIds);
+    await clearRecordNotificationRowsForCar(carId);
+    await db.runAsync('DELETE FROM fuel_records WHERE carId = ?', [carId]);
     await db.runAsync('DELETE FROM maintenance_records WHERE carId = ?', [carId]);
     await db.runAsync('DELETE FROM cars WHERE id = ?', [carId]);
   } catch {

@@ -118,6 +118,7 @@ export default function SuggestionsScreen() {
         setFuel={suggestion.setFuel}
         gear={suggestion.gear}
         setGear={suggestion.setGear}
+        touched={suggestion.touched}
       />
     </KeyboardAvoidingView>
   );
@@ -134,6 +135,7 @@ const tabStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: t.spacing.md,
+    paddingHorizontal: t.spacing.sm,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -144,6 +146,7 @@ const tabStyles = StyleSheet.create({
     ...t.typography.bodySm,
     color: t.color.text.muted,
     fontWeight: '500',
+    textAlign: 'center',
   },
   labelActive: {
     color: t.color.brand.primary,

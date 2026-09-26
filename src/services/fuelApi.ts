@@ -17,8 +17,11 @@ interface FuelRecordRow {
 export const getFuelRecords = async (carId: string): Promise<FuelRecord[]> => {
   try {
     const db = await getDB();
+    // Kilometreye göre sıralı (yalnızca artar) — ekleme sırasına göre değil,
+    // gerçek kronolojik sıraya göre gösterir; geriye dönük eklenen bir kayıt
+    // listenin başına sıçramaz.
     const rows = await db.getAllAsync<FuelRecordRow>(
-      `SELECT * FROM fuel_records WHERE carId = ? ORDER BY rowid DESC`,
+      `SELECT * FROM fuel_records WHERE carId = ? ORDER BY currentKm DESC, rowid DESC`,
       [carId]
     );
     return rows.map(r => ({

@@ -7,5 +7,12 @@ const cars = carsData as Record<string, string[]>;
 export const fetchBrands = async (): Promise<string[]> =>
   Object.keys(cars);
 
-export const fetchModels = async (brand: string): Promise<string[]> =>
-  cars[brand] ?? [];
+// hasOwnProperty ile kontrol ediyoruz: "brand" kullanıcının kendi yazdığı bir
+// metin olabilir (Diğer → serbest giriş). "constructor", "toString", "__proto__"
+// gibi bir marka yazılırsa düz `cars[brand]` erişimi Object.prototype'daki bir
+// FONKSİYONA denk gelip diziymiş gibi kullanılmaya çalışılınca uygulama çöküyordu.
+export const fetchModels = async (brand: string): Promise<string[]> => {
+  if (!Object.prototype.hasOwnProperty.call(cars, brand)) return [];
+  const models = cars[brand];
+  return Array.isArray(models) ? models : [];
+};

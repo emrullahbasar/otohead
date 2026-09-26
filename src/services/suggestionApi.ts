@@ -5,6 +5,16 @@ import {
 import { getExpoPushToken } from '../notifications/pushToken';
 
 const APPS_SCRIPT_URL = process.env.EXPO_PUBLIC_APPS_SCRIPT_URL ?? '';
+const CONFIG_MISSING_ERROR = 'Danışmanlık servisi yapılandırılmamış. Lütfen uygulamayı güncelleyin.';
+if (__DEV__ && !APPS_SCRIPT_URL) {
+  // Derleme ortam değişkeni eksikse eskiden istekler sessizce boş adrese
+  // gidip anlaşılmaz bir ağ hatası veriyordu — geliştirici konsolunda erkenden
+  // uyar, kullanıcıya da net bir mesaj göster (aşağıdaki assertConfigured).
+  console.warn('[suggestionApi] EXPO_PUBLIC_APPS_SCRIPT_URL tanımlı değil — Danışmanlık istekleri başarısız olacak.');
+}
+function assertConfigured(): void {
+  if (!APPS_SCRIPT_URL) throw new Error(CONFIG_MISSING_ERROR);
+}
 
 export type SuggestionStatus = 'BEKLİYOR' | 'HAZIR' | 'GÖRÜLDÜ' | 'YOK';
 
@@ -51,6 +61,7 @@ const REGISTER_REFUSED = 'Kayıt oluşturulamadı.';
 const REQUEST_TIMEOUT_MS = 35000;
 const TIMEOUT_ERROR = 'Sunucu şu anda yanıt vermekte gecikiyor. Lütfen birkaç saniye sonra tekrar deneyin.';
 const INVALID_RESPONSE = 'Sunucudan geçersiz yanıt alındı. Lütfen tekrar deneyin.';
+const NETWORK_ERROR = 'İnternet bağlantısı yok görünüyor. Bağlantınızı kontrol edip tekrar deneyin.';
 
 // Apps Script bazen 20+ saniye gecikebiliyor — zaman aşımı olmadan fetch
 // sonsuza kadar bekler, kullanıcı hiçbir geri bildirim almadan ekranda
@@ -62,6 +73,10 @@ async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Res
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw new Error(TIMEOUT_ERROR);
+    // React Native'in fetch polyfill'i internet yokken/DNS çözülemezken ham
+    // İngilizce "Network request failed" (TypeError) fırlatır — kullanıcı bunu
+    // olduğu gibi görüyordu. Anlaşılır bir Türkçe mesaja çeviriyoruz.
+    if (err instanceof TypeError) throw new Error(NETWORK_ERROR);
     throw err;
   } finally {
     clearTimeout(timer);
@@ -84,6 +99,7 @@ async function readJson(response: Response): Promise<any> {
 // uygulama bundle'ına gömülüydü (SEC-001) — artık her clientId'nin kendi
 // sırrı var ve bu sır hiçbir zaman uygulama koduna/bundle'ına gömülmüyor.
 async function registerSecret(clientId: string): Promise<string> {
+  assertConfigured();
   const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',
@@ -153,6 +169,7 @@ function refreshCredentials(failed: Credentials): Promise<Credentials> {
 // clientId her zaman veritabanından okunur; çağıranın verdiği değer eski
 // (döndürülmüş) olabilir.
 async function withAuthRetry<T>(run: (creds: Credentials) => Promise<T>): Promise<T> {
+  assertConfigured();
   const creds = await ensureCredentials();
   try {
     return await run(creds);
@@ -183,7 +200,7 @@ async function retryOnTransient<T>(fn: () => Promise<T>): Promise<T> {
 // kayıt olup olmadığına bakılır (mükerrer istek oluşmasın).
 async function landedDespiteError(err: unknown, check: () => Promise<{ status: SuggestionStatus }>): Promise<boolean> {
   const transient = err instanceof TypeError ||
-    (err instanceof Error && (err.message === TIMEOUT_ERROR || err.message === INVALID_RESPONSE));
+    (err instanceof Error && (err.message === TIMEOUT_ERROR || err.message === INVALID_RESPONSE || err.message === NETWORK_ERROR));
   if (!transient) return false;
   try {
     return (await check()).status === 'BEKLİYOR';
@@ -230,10 +247,19 @@ export async function submitEvaluation(data: SimpleRequest): Promise<void> {
   }
 }
 
+// Durum sorguları POST ile gider (secret gövdede) — eskiden GET sorgu dizesinde
+// (?...&secret=...) gidiyordu, bu URL erişim günlüklerinde görünebilirdi.
+// Sunucu tarafı da (apps-script/Code.gs) buna göre güncellendi; ikisi birlikte
+// dağıtılmalı (Apps Script'te "Yeni sürüm" ile yeniden yayınlanmadıkça eski
+// davranış sunucuda kalmaya devam eder).
 export async function checkEvaluation(_clientId: string): Promise<SimpleResult> {
   return withAuthRetry(({ clientId, secret }) => retryOnTransient(async () => {
-    const url = `${APPS_SCRIPT_URL}?action=checkEval&clientId=${encodeURIComponent(clientId)}&secret=${encodeURIComponent(secret)}`;
-    const response = await fetchWithTimeout(url);
+    const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'checkEval', clientId, secret }),
+    });
     if (!response.ok) throw new Error('Durum kontrol edilemedi.');
     const result = await readJson(response);
     if (!result.success) throw new Error(result.error || 'Bir hata oluştu.');
@@ -243,8 +269,12 @@ export async function checkEvaluation(_clientId: string): Promise<SimpleResult> 
 
 export async function checkSuggestion(_clientId: string): Promise<SuggestionResult> {
   return withAuthRetry(({ clientId, secret }) => retryOnTransient(async () => {
-    const url = `${APPS_SCRIPT_URL}?action=check&clientId=${encodeURIComponent(clientId)}&secret=${encodeURIComponent(secret)}`;
-    const response = await fetchWithTimeout(url);
+    const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'check', clientId, secret }),
+    });
     if (!response.ok) throw new Error('Durum kontrol edilemedi.');
     const result = await readJson(response);
     if (!result.success) throw new Error(result.error || 'Bir hata oluştu.');
@@ -252,15 +282,36 @@ export async function checkSuggestion(_clientId: string): Promise<SuggestionResu
   }));
 }
 
-export async function markAsSeen(_clientId: string): Promise<void> {
+export async function markAsSeen(_clientId: string, target: 'suggestion' | 'evaluation' = 'suggestion'): Promise<void> {
   await withAuthRetry(async ({ clientId, secret }) => {
     await fetchWithTimeout(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'markSeen', secret, clientId }),
+      body: JSON.stringify({ action: 'markSeen', secret, clientId, target }),
     });
   });
 }
+
+// Hâlâ "BEKLİYOR" durumundaki bir isteği geri çeker — eskiden uzman hiç
+// yanıtlamazsa kullanıcı yeni istek gönderemiyordu ("Zaten aktif bir isteğiniz
+// var"), bu tek çıkış yoluydu. Uzman zaten yanıtladıysa (HAZIR/GÖRÜLDÜ) sunucu
+// isteği reddeder; o durumda kullanıcı cevabı görüp normal akışla devam eder.
+async function cancelRequest(action: 'cancel' | 'cancelEval'): Promise<void> {
+  await withAuthRetry(async ({ clientId, secret }) => {
+    const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, clientId, secret }),
+    });
+    if (!response.ok) throw new Error('İstek iptal edilemedi.');
+    const result = await readJson(response);
+    if (!result.success) throw new Error(result.error || 'İstek iptal edilemedi.');
+  });
+}
+
+export const cancelSuggestion = (): Promise<void> => cancelRequest('cancel');
+export const cancelEvaluation = (): Promise<void> => cancelRequest('cancelEval');
 
 // Telefonun push adresini sunucuya bildirir ki uzman cevabı hazırladığında
 // uygulama kapalıyken bildirim gönderilebilsin. Adres (bu kimlik için)

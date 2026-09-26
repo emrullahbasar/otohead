@@ -4,6 +4,8 @@ import {
   submitEvaluation,
   syncPushToken,
   checkEvaluation,
+  markAsSeen,
+  cancelEvaluation,
   SimpleResult,
   SimpleRequest,
 } from '../services/suggestionApi';
@@ -31,6 +33,7 @@ export const useSimpleRequest = () => {
   const [error,          setError]          = useState('');
   const [submitted,      setSubmitted]      = useState(false);
   const [result,         setResult]         = useState<SimpleResult | null>(null);
+  const [cancelling,     setCancelling]     = useState(false);
   const checkedRef  = useRef(false);
   const seqRef      = useRef(0);
   const inFlightRef = useRef(false);
@@ -76,6 +79,16 @@ export const useSimpleRequest = () => {
       setResult(data);
       persist(data);
       if (data.status === 'BEKLİYOR') syncPushToken();
+      // Öneri akışıyla aynı: HAZIR görülünce sunucuda GÖRÜLDÜ'e çekilir —
+      // böylece yeni bir değerlendirme isteği göndermek engellenmez kalmaz.
+      if (data.status === 'HAZIR') {
+        await markAsSeen(clientId, 'evaluation');
+        if (seq === seqRef.current) {
+          const seen = { ...data, status: 'GÖRÜLDÜ' as const };
+          setResult(seen);
+          persist(seen);
+        }
+      }
     } catch (err) {
       if (seq === seqRef.current) {
         setStatusError(err instanceof Error ? err.message : 'Durum kontrol edilemedi.');
@@ -138,6 +151,8 @@ export const useSimpleRequest = () => {
   const reset = useCallback(() => {
     const id = resultRef.current?.requestId;
     if (id) setConfig(DISMISSED_KEY, id).catch(() => {});
+    // Otomatik markAsSeen daha önce ağ hatasıyla başarısız olduysa bir şans daha.
+    if (clientId) markAsSeen(clientId, 'evaluation').catch(() => {});
     seqRef.current++;
     inFlightRef.current = false;
     setCheckingStatus(false);
@@ -150,12 +165,34 @@ export const useSimpleRequest = () => {
     setMessage('');
   }, []);
 
+  // Uzman hiç yanıtlamazsa kullanıcı sonsuza kadar "İnceleniyor" ekranında
+  // kilitli kalmasın diye bekleyen isteği geri çeker.
+  const cancelPending = useCallback(async () => {
+    setCancelling(true);
+    setStatusError('');
+    try {
+      await cancelEvaluation();
+      seqRef.current++;
+      inFlightRef.current = false;
+      setSubmitted(false);
+      setResult(null);
+      persist(NO_RESULT);
+      knownNoneRef.current = true;
+      checkedRef.current = false;
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'İstek iptal edilemedi.');
+    } finally {
+      setCancelling(false);
+    }
+  }, []);
+
   return {
     clientId,
     ilanNo, setIlanNo,
     message, setMessage,
     loading, checkingStatus, statusError, error,
     submitted, result,
+    cancelling, cancelPending,
     handleSubmit, checkStatus, forceCheck, checkOnMount, reset,
   };
 };

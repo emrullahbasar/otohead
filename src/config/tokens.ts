@@ -15,7 +15,10 @@ export const tokens = {
     text: {
       primary:   '#0D1520',
       secondary: '#4A5568',
-      muted:     '#8A9AB0',
+      // Eskiden #8A9AB0 — beyaz zeminde ~2,7:1 (WCAG AA metin eşiği 4,5:1'in
+      // altında). Etiketler, ipuçları ve pasif sekme yazıları (10px) bu renkle
+      // yazılıyor; okunabilir olsun diye koyulaştırıldı (~5,3:1).
+      muted:     '#616C7B',
       inverse:   '#FFFFFF',
       brand:     '#0F2D52',
     },
@@ -25,8 +28,10 @@ export const tokens = {
       focus:    '#0F2D52',
       divider:  '#EDF2F7',
     },
-    success: { default: '#16A34A', bg: '#F0FDF4', border: '#BBF7D0' },
-    warning: { default: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
+    // success/warning: küçük metinde (etiket, ipucu, rozet) okunaklı olsun diye
+    // orijinal tondan biraz koyu — WCAG AA (4,5:1) eşiğini geçiyor.
+    success: { default: '#12873D', bg: '#F0FDF4', border: '#BBF7D0' },
+    warning: { default: '#B26205', bg: '#FFFBEB', border: '#FDE68A' },
     danger:  { default: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
     info:    { default: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE' },
   },

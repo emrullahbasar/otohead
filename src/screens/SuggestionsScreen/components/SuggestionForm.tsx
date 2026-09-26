@@ -3,6 +3,8 @@ import {
   View, Text, TextInput, Pressable, ActivityIndicator,
 } from 'react-native';
 import { styles } from '../styles';
+import { formatWholeNumberDisplay, parseWholeNumberInput } from '../../../utils/numberFormat';
+import { trUpper } from '../../../utils/textCase';
 
 interface Props {
   budget:      string; setBudget:   (val: string) => void;
@@ -20,13 +22,8 @@ interface Props {
   onExtraFocus?: () => void;
 }
 
-const formatNumber = (value: string): string => {
-  const raw = value.replace(/,/g, '');
-  if (!raw) return '';
-  const num = parseInt(raw, 10);
-  if (isNaN(num)) return '';
-  return num.toLocaleString('en-US');
-};
+// Uygulama genelinde tutarlı olsun diye kartlarla aynı biçim (tr-TR, nokta binlik).
+const formatNumber = formatWholeNumberDisplay;
 
 // Seçim label'ı — dokunulmadıysa "Seçin", dokunulup "Fark Etmez" seçildiyse
 // (boş dizi) "Fark Etmez" gösterir. touched olmadan boş diziyi "Fark Etmez"
@@ -54,13 +51,13 @@ export const SuggestionForm = ({
 
   return (
     <View style={styles.form}>
-      <Text style={styles.label}>Bütçe (TL)</Text>
+      <Text style={styles.label}>{trUpper('Bütçe (TL)')}</Text>
       <TextInput
         style={styles.input}
         placeholder="örn. 500.000"
         placeholderTextColor={styles.selectorPlaceholder.color}
         value={formatNumber(budget)}
-        onChangeText={text => setBudget(text.replace(/\D/g, '').slice(0, 12))}
+        onChangeText={text => setBudget(parseWholeNumberInput(text))}
         keyboardType="numeric"
         returnKeyType="next"
         onSubmitEditing={() => yearMinRef.current?.focus()}
@@ -68,7 +65,7 @@ export const SuggestionForm = ({
         editable={!loading}
       />
 
-      <Text style={styles.label}>Yıl Aralığı</Text>
+      <Text style={styles.label}>{trUpper('Yıl Aralığı')}</Text>
       <View style={styles.row}>
         <TextInput
           ref={yearMinRef}
@@ -101,7 +98,7 @@ export const SuggestionForm = ({
       </View>
 
       <Text style={styles.label}>
-        Kasa Tipi{caseType.length > 0 ? ` (${caseType.length} seçildi)` : ''}
+        {trUpper(`Kasa Tipi${caseType.length > 0 ? ` (${caseType.length} seçildi)` : ''}`)}
       </Text>
       <Pressable
         style={styles.selector}
@@ -114,7 +111,7 @@ export const SuggestionForm = ({
       </Pressable>
 
       <Text style={styles.label}>
-        Yakıt Tipi{fuel.length > 0 ? ` (${fuel.length} seçildi)` : ''}
+        {trUpper(`Yakıt Tipi${fuel.length > 0 ? ` (${fuel.length} seçildi)` : ''}`)}
       </Text>
       <Pressable
         style={styles.selector}
@@ -127,7 +124,7 @@ export const SuggestionForm = ({
       </Pressable>
 
       <Text style={styles.label}>
-        Vites Tipi{gear.length > 0 ? ` (${gear.length} seçildi)` : ''}
+        {trUpper(`Vites Tipi${gear.length > 0 ? ` (${gear.length} seçildi)` : ''}`)}
       </Text>
       <Pressable
         style={styles.selector}
@@ -139,7 +136,7 @@ export const SuggestionForm = ({
         <Text style={styles.selectorArrow}>›</Text>
       </Pressable>
 
-      <Text style={styles.label}>Kullanım Amacınızı Açıklayın</Text>
+      <Text style={styles.label}>{trUpper('Kullanım Amacınızı Açıklayın')}</Text>
       <TextInput
         ref={extraRef}
         style={[styles.input, styles.multilineInput]}
@@ -157,6 +154,9 @@ export const SuggestionForm = ({
         editable={!loading}
         scrollEnabled
       />
+      <Text style={styles.fieldHint}>
+        Lütfen isim, telefon numarası gibi kişisel bilgi yazmayın.
+      </Text>
 
       <Pressable
         style={[styles.button, loading && styles.buttonDisabled]}

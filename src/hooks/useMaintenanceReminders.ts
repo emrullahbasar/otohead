@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 import {
-  scheduleSmartReminders,
+  applySmartReminders,
   sendRecordCreatedNotification,
 } from '../notifications';
 
@@ -24,6 +24,27 @@ const askIsTicari = (): Promise<boolean> =>
     )
   );
 
+// Kullanıcının elle girdiği "sonraki km" değeri işlem km'sinden büyük değilse
+// güvenilmez (anlamsız/hatalı giriş) — reddedip otomatik hesaplamaya bırakır.
+const isValidOverrideKm = (km: string, baseKm: string): boolean => {
+  const k = parseInt(km, 10);
+  const b = parseInt(baseKm, 10) || 0;
+  return Number.isFinite(k) && k > b;
+};
+
+// Kullanıcının elle girdiği "sonraki tarih" işlem tarihinden ileride değilse güvenilmez.
+const isValidOverrideDate = (dateStr: string, baseDateStr: string): boolean => {
+  const toComparable = (s: string): string | null => {
+    const parts = s.split('.');
+    if (parts.length !== 3) return null;
+    const [d, m, y] = parts;
+    return `${y.padStart(4, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  };
+  const a = toComparable(dateStr);
+  const b = toComparable(baseDateStr);
+  return !!a && !!b && a > b;
+};
+
 export interface ReminderResult {
   nextDate: string;
   nextKm:   string;
@@ -31,6 +52,7 @@ export interface ReminderResult {
 
 export const useMaintenanceReminders = () => {
   const scheduleForRecord = async (
+    recordId:   string,
     carName:    string,
     recordType: string,
     recordDate: string,
@@ -38,8 +60,8 @@ export const useMaintenanceReminders = () => {
     existingNextDate?: string,
     existingNextKm?:  string,
   ): Promise<ReminderResult> => {
-    let finalNextDate = existingNextDate || '';
-    let finalNextKm   = existingNextKm   || '';
+    let finalNextDate = (existingNextDate && isValidOverrideDate(existingNextDate, recordDate)) ? existingNextDate : '';
+    let finalNextKm   = (existingNextKm   && isValidOverrideKm(existingNextKm, recordKm))       ? existingNextKm   : '';
 
     if (SMART_TYPES.includes(recordType) && carName) {
       let isTicari = false;
@@ -47,9 +69,9 @@ export const useMaintenanceReminders = () => {
         isTicari = await askIsTicari();
       }
 
-      const result = await scheduleSmartReminders(
-        carName, recordType, recordDate, recordKm, isTicari,
-        { nextDate: existingNextDate, nextKm: existingNextKm },
+      const result = await applySmartReminders(
+        recordId, carName, recordType, recordDate, recordKm, isTicari,
+        { nextDate: finalNextDate || existingNextDate, nextKm: finalNextKm || existingNextKm },
       );
 
       if (!finalNextDate && result.nextDate) finalNextDate = result.nextDate;
@@ -62,6 +84,7 @@ export const useMaintenanceReminders = () => {
   };
 
   const scheduleForUpdate = async (
+    recordId:   string,
     carName:    string,
     editType:   string,
     editDate:   string,
@@ -69,8 +92,8 @@ export const useMaintenanceReminders = () => {
     existingNextDate?: string,
     existingNextKm?:  string,
   ): Promise<ReminderResult> => {
-    let finalNextDate = existingNextDate || '';
-    let finalNextKm   = existingNextKm   || '';
+    let finalNextDate = (existingNextDate && isValidOverrideDate(existingNextDate, editDate)) ? existingNextDate : '';
+    let finalNextKm   = (existingNextKm   && isValidOverrideKm(existingNextKm, editKm))       ? existingNextKm   : '';
 
     if (SMART_TYPES.includes(editType) && carName) {
       let isTicari = false;
@@ -78,9 +101,9 @@ export const useMaintenanceReminders = () => {
         isTicari = await askIsTicari();
       }
 
-      const result = await scheduleSmartReminders(
-        carName, editType, editDate, editKm, isTicari,
-        { nextDate: existingNextDate, nextKm: existingNextKm },
+      const result = await applySmartReminders(
+        recordId, carName, editType, editDate, editKm, isTicari,
+        { nextDate: finalNextDate || existingNextDate, nextKm: finalNextKm || existingNextKm },
       );
 
       if (!finalNextDate && result.nextDate) finalNextDate = result.nextDate;

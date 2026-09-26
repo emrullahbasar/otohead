@@ -75,6 +75,16 @@ export const initTables = async (): Promise<void> => {
       // Kolon zaten mevcut
     }
 
+    // Bir bakım kaydına bağlı kurulmuş (tarih bazlı) bildirim kimlikleri —
+    // kayıt düzenlenince/silinince eski hatırlatıcıları iptal edebilmek için.
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS record_notifications (
+        recordId       TEXT NOT NULL,
+        notificationId TEXT NOT NULL,
+        PRIMARY KEY (recordId, notificationId)
+      );
+    `);
+
   } catch (error) {
     if (error instanceof DatabaseError) throw error;
     throw new DatabaseError('Veritabanı tabloları oluşturulamadı.');
@@ -165,4 +175,53 @@ export const rotateClientId = async (): Promise<string> => {
 export const clearClientSecret = async (): Promise<void> => {
   const database = await getDB();
   await database.runAsync(`DELETE FROM client_config WHERE key = 'clientSecret'`);
+};
+
+// ───────────────────────────────────────────────────────────
+// Bir bakım kaydına bağlı kurulmuş hatırlatıcı bildirimleri — bkz.
+// notifications/index.ts (applySmartReminders / cancelRecordReminders).
+// ───────────────────────────────────────────────────────────
+export const addRecordNotification = async (recordId: string, notificationId: string): Promise<void> => {
+  const database = await getDB();
+  await database.runAsync(
+    `INSERT OR IGNORE INTO record_notifications (recordId, notificationId) VALUES (?, ?)`,
+    [recordId, notificationId]
+  );
+};
+
+export const getRecordNotificationIds = async (recordId: string): Promise<string[]> => {
+  const database = await getDB();
+  const rows = await database.getAllAsync<{ notificationId: string }>(
+    `SELECT notificationId FROM record_notifications WHERE recordId = ?`,
+    [recordId]
+  );
+  return rows.map(r => r.notificationId);
+};
+
+export const clearRecordNotificationRows = async (recordId: string): Promise<void> => {
+  const database = await getDB();
+  await database.runAsync(`DELETE FROM record_notifications WHERE recordId = ?`, [recordId]);
+};
+
+// Bir aracın tüm bakım kayıtlarına bağlı bildirim kimliklerini döndürür
+// (araç silinirken hepsini iptal edebilmek için).
+export const getRecordNotificationIdsForCar = async (carId: string): Promise<string[]> => {
+  const database = await getDB();
+  const rows = await database.getAllAsync<{ notificationId: string }>(
+    `SELECT rn.notificationId AS notificationId
+       FROM record_notifications rn
+       JOIN maintenance_records m ON m.id = rn.recordId
+      WHERE m.carId = ?`,
+    [carId]
+  );
+  return rows.map(r => r.notificationId);
+};
+
+export const clearRecordNotificationRowsForCar = async (carId: string): Promise<void> => {
+  const database = await getDB();
+  await database.runAsync(
+    `DELETE FROM record_notifications
+      WHERE recordId IN (SELECT id FROM maintenance_records WHERE carId = ?)`,
+    [carId]
+  );
 };

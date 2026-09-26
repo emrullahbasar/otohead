@@ -146,8 +146,12 @@ export default function HomeScreen() {
 
       {/* ── FOOTER ── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <Pressable onPress={() => setShowPrivacy(true)} hitSlop={12}>
-          <Text style={[styles.footerText, { textDecorationLine: "underline", marginBottom: 8 }]}>
+        <Pressable
+          onPress={() => setShowPrivacy(true)}
+          hitSlop={12}
+          style={{ paddingVertical: 12, paddingHorizontal: 8 }}
+        >
+          <Text style={[styles.footerText, { textDecorationLine: "underline" }]}>
             Gizlilik ve Veriler
           </Text>
         </Pressable>

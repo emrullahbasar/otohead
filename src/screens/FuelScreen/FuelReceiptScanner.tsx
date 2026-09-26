@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, Pressable, ActivityIndicator, StyleSheet, Alert,
+  View, Text, Pressable, ActivityIndicator, StyleSheet, Alert, Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import TextRecognition, { TextRecognitionResult } from '@react-native-ml-kit/text-recognition';
@@ -61,20 +61,27 @@ export default function FuelReceiptScanner({ onDataExtracted }: Props) {
   const [scanning, setScanning] = useState(false);
 
   const handleScan = async (fromCamera: boolean) => {
-    // İzin kontrolü
     if (fromCamera) {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      // Kamera her zaman gerçek bir izin ister (manifestte de bildirilir).
+      const { status, canAskAgain } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Kamera kullanmak için izin vermeniz gerekiyor. Ayarlar > OtoHead > Kamera');
-        return;
-      }
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Galeriye erişmek için izin vermeniz gerekiyor. Ayarlar > OtoHead > Fotoğraflar');
+        Alert.alert(
+          'İzin Gerekli',
+          'Kamera kullanmak için izin vermeniz gerekiyor. Ayarlar > OtoHead > Kamera',
+          canAskAgain ? undefined : [
+            { text: 'Vazgeç', style: 'cancel' },
+            { text: 'Ayarları Aç', onPress: () => Linking.openSettings() },
+          ],
+        );
         return;
       }
     }
+    // Galeri: sistemin foto seçicisi (Android Photo Picker / iOS PHPicker) hiçbir
+    // çalışma zamanı izni gerektirmez — uygulamanın kendi klasörüne erişimi
+    // yoktur, kullanıcı seçtiği TEK fotoğrafı paylaşır. Eskiden burada gereksiz
+    // yere requestMediaLibraryPermissionsAsync() çağrılıyordu (READ_MEDIA_IMAGES
+    // izni Play Store'da fazladan beyan gerektiriyordu); launchImageLibraryAsync
+    // gerekirse kendi izin akışını zaten iç mekanizmasıyla yönetir.
 
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: 'images' as any,

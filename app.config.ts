@@ -35,12 +35,21 @@ export default {
       predictiveBackGestureEnabled: false,
       permissions: [
         'android.permission.CAMERA',
-        'android.permission.READ_EXTERNAL_STORAGE',
-        'android.permission.READ_MEDIA_IMAGES',
       ],
-      // Expo'nun varsayılan şablon manifest'i bunu otomatik ekliyor ama
-      // uygulamada hiçbir overlay/floating-window özelliği yok — engelle (SEC-015).
-      blockedPermissions: ['android.permission.SYSTEM_ALERT_WINDOW'],
+      // Expo'nun varsayılan şablon manifest'i SYSTEM_ALERT_WINDOW'u otomatik
+      // ekliyor ama uygulamada hiçbir overlay/floating-window özelliği yok (SEC-015).
+      // Depolama/foto izinleri de expo-image-picker kütüphanesinin kendi
+      // manifestinden geliyordu (READ/WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES) —
+      // uygulama yalnızca sistemin foto seçicisini (Android Photo Picker / iOS
+      // PHPicker) kullanıyor, bunların hiçbiri bu akış için gerekli değil ve
+      // Play Store'da gereksiz "Fotoğraf/Video" izni + Data Safety beyanı istetiyordu.
+      blockedPermissions: [
+        'android.permission.SYSTEM_ALERT_WINDOW',
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+        'android.permission.READ_MEDIA_IMAGES',
+        'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
+      ],
     },
     web: {
       favicon: './assets/favicon.png',

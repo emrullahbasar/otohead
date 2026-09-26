@@ -24,6 +24,12 @@ export const styles = StyleSheet.create({
     color: t.color.text.muted,
     marginTop: 4,
   },
+  fieldHint: {
+    ...t.typography.caption,
+    color: t.color.text.muted,
+    marginTop: -t.spacing.xs,
+    marginBottom: t.spacing.sm,
+  },
 
   // Form
   form: {
@@ -39,7 +45,8 @@ export const styles = StyleSheet.create({
     color: t.color.text.muted,
     marginBottom: t.spacing.xs,
     marginTop: t.spacing.md,
-    textTransform: 'uppercase',
+    // textTransform:'uppercase' kaldırıldı — Türkçe "i" yanlışlıkla "I" oluyordu.
+    // Metinler artık trUpper() ile (tr-TR yereline duyarlı) büyütülüyor.
     letterSpacing: 0.6,
   },
   input: {

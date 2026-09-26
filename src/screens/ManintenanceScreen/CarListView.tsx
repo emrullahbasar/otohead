@@ -19,6 +19,9 @@ interface Props {
   model: string;
   year: string;
   nickname: string;
+  setBrand: (val: string) => void;
+  setModel: (val: string) => void;
+  setYear: (val: string) => void;
   setNickname: (val: string) => void;
   setModalType: (val: 'brand' | 'model' | 'year' | 'recordType' | null) => void;
   handleAddCar: () => void;
@@ -29,9 +32,19 @@ interface Props {
 export const CarListView = ({
   cars, showCarForm, setShowCarForm,
   brand, model, year, nickname,
-  setNickname, setModalType,
+  setBrand, setModel, setYear, setNickname, setModalType,
   handleAddCar, handleDeleteCar, setSelectedCar,
 }: Props) => {
+  // "İptal" formu kapatır AMA eskiden alanları temizlemiyordu — formu tekrar
+  // açınca önceki (belki "Diğer" ile elle yazılmış) marka/model/yıl orada duruyordu.
+  const cancelCarForm = () => {
+    setBrand('');
+    setModel('');
+    setYear('');
+    setNickname('');
+    setShowCarForm(false);
+  };
+
   const insets = useSafeAreaInsets();
 
   return (
@@ -49,6 +62,8 @@ export const CarListView = ({
       <ScrollView
         style={styles.content}
         keyboardShouldPersistTaps="handled"
+        // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
@@ -106,13 +121,14 @@ export const CarListView = ({
               placeholderTextColor={t.color.text.muted}
               value={nickname}
               onChangeText={setNickname}
+              maxLength={40}
               returnKeyType="done"
             />
 
             <Pressable style={styles.button} onPress={handleAddCar}>
               <Text style={styles.buttonText}>Kaydet</Text>
             </Pressable>
-            <Pressable style={styles.cancelButton} onPress={() => setShowCarForm(false)}>
+            <Pressable style={styles.cancelButton} onPress={cancelCarForm}>
               <Text style={styles.cancelText}>İptal</Text>
             </Pressable>
           </View>

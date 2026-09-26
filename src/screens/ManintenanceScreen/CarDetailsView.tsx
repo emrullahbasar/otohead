@@ -19,6 +19,8 @@ import { getLatestKm, LatestKm } from "../../services/kmAlerts";
 import {
   formatNumber,
   parseNumber,
+  formatAmount,
+  parseAmount,
   parseDateString,
   formatDateToString,
 } from "./components/RecordDetailModal";
@@ -91,7 +93,6 @@ export const CarDetailsView = ({
   const priceRef  = useRef<TextInput>(null);
 
   const isDateType  = ["Muayene", "Sigorta", "Kasko"].includes(recordType);
-  const isPeriyodik = recordType === "Periyodik Bakım";
   const interval    = KM_INTERVALS[recordType];
   const kmNow       = parseInt(recordKm, 10) || 0;
 
@@ -125,6 +126,8 @@ export const CarDetailsView = ({
           style={styles.content}
           contentContainerStyle={{ paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
+          // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           {selectedCar.records.length === 0 && !showRecordForm && (
@@ -154,7 +157,7 @@ export const CarDetailsView = ({
               </Pressable>
 
               <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={{ color: recordDate ? "#020202" : "#52525B" }}>
+                <Text style={{ color: recordDate ? "#020202" : "#616C7B" }}>
                   {recordDate || "📅 İşlem Tarihi Seçin"}
                 </Text>
               </Pressable>
@@ -163,22 +166,22 @@ export const CarDetailsView = ({
                 ref={kmRef}
                 style={styles.input}
                 placeholder="Aracın Kilometresi"
-                placeholderTextColor="#52525B"
+                placeholderTextColor="#616C7B"
                 value={formatNumber(recordKm)}
                 onChangeText={t => setRecordKm(parseNumber(t))}
                 keyboardType="numeric"
                 returnKeyType="next"
-                onSubmitEditing={() => isPeriyodik ? nextKmRef.current?.focus() : noteRef.current?.focus()}
+                onSubmitEditing={() => interval ? nextKmRef.current?.focus() : noteRef.current?.focus()}
                 blurOnSubmit={false}
               />
 
-              {isPeriyodik && (
+              {interval && (
                 <>
                   <TextInput
                     ref={nextKmRef}
                     style={[styles.input, !recordNextKm && { marginBottom: 2 }]}
                     placeholder="Sonraki Bakım Km (İsteğe bağlı)"
-                    placeholderTextColor="#52525B"
+                    placeholderTextColor="#616C7B"
                     value={formatNumber(recordNextKm)}
                     onChangeText={t => setRecordNextKm(parseNumber(t))}
                     keyboardType="numeric"
@@ -186,29 +189,23 @@ export const CarDetailsView = ({
                     onSubmitEditing={() => noteRef.current?.focus()}
                     blurOnSubmit={false}
                   />
-                  {!recordNextKm && interval && (
+                  {!recordNextKm && (
                     <Text style={styles.fieldHint}>
+                      {/* Bu aralık araca/parçaya göre büyük farklılık gösterebilir (ör. triger
+                          zinciri 160-170 bin km'de değişebilirken kayış tipi çok daha erken
+                          değişir) — bu yüzden kesin bir kural değil, yalnızca boş bırakılırsa
+                          kullanılacak kaba bir varsayımdır; gerçek değeri biliniyorsa girilmeli. */}
                       {kmNow > 0
-                        ? `Boş bırakırsan ${formatNumber(String(kmNow + interval.km))} km olarak ayarlanır (işlem km'sine +${formatNumber(String(interval.km))} km). Ayrıca ${interval.years} yıl sonrası için tarih hatırlatıcısı kurulur.`
-                        : `Boş bırakırsan işlem kilometresine ${formatNumber(String(interval.km))} km eklenerek otomatik ayarlanır. Ayrıca ${interval.years} yıl sonrası için tarih hatırlatıcısı kurulur.`}
+                        ? `Boş bırakırsan kabaca ${formatNumber(String(kmNow + interval.km))} km olarak ayarlanır (işlem km'sine +${formatNumber(String(interval.km))} km, genel bir varsayımdır). Aracınız/parçanız için gerçek değeri biliyorsanız buraya girin. Ayrıca ${interval.years} yıl sonrası için tarih hatırlatıcısı kurulur.`
+                        : `Boş bırakırsan işlem kilometresine kabaca ${formatNumber(String(interval.km))} km eklenerek ayarlanır (genel bir varsayımdır, aracınız için gerçek değeri biliyorsanız girin). Ayrıca ${interval.years} yıl sonrası için tarih hatırlatıcısı kurulur.`}
                     </Text>
                   )}
                 </>
               )}
 
-              {interval && !isPeriyodik && (
-                <Text style={styles.fieldHint}>
-                  {`Sonraki ${recordType} otomatik ayarlanır: ${
-                    kmNow > 0
-                      ? `${formatNumber(String(kmNow + interval.km))} km`
-                      : `işlem km'sine +${formatNumber(String(interval.km))} km`
-                  } veya ${interval.years} yıl sonrası (hangisi önce gelirse).`}
-                </Text>
-              )}
-
               {isDateType && (
                 <Pressable style={styles.input} onPress={() => setShowNextDatePicker(true)}>
-                  <Text style={{ color: recordNextDate ? "#020202" : "#52525B" }}>
+                  <Text style={{ color: recordNextDate ? "#020202" : "#616C7B" }}>
                     {recordNextDate || `📆 Sonraki ${recordType} Tarihi (otomatik hesaplanır)`}
                   </Text>
                 </Pressable>
@@ -218,7 +215,7 @@ export const CarDetailsView = ({
                 ref={noteRef}
                 style={styles.input}
                 placeholder="Not (isteğe bağlı)"
-                placeholderTextColor="#52525B"
+                placeholderTextColor="#616C7B"
                 value={recordNote}
                 onChangeText={setRecordNote}
                 returnKeyType="next"
@@ -230,10 +227,10 @@ export const CarDetailsView = ({
                 ref={priceRef}
                 style={styles.input}
                 placeholder="Ödenilen Ücret (isteğe bağlı)"
-                placeholderTextColor="#52525B"
-                value={formatNumber(recordPrice)}
-                onChangeText={t => setRecordPrice(parseNumber(t))}
-                keyboardType="numeric"
+                placeholderTextColor="#616C7B"
+                value={formatAmount(recordPrice)}
+                onChangeText={t => setRecordPrice(parseAmount(t))}
+                keyboardType="decimal-pad"
                 returnKeyType="done"
               />
 
@@ -263,9 +260,9 @@ export const CarDetailsView = ({
         onCancel={() => setShowDatePicker(false)}
         confirmTextIOS="Tamam"
         cancelTextIOS="Vazgeç"
-        pickerContainerStyleIOS={{ backgroundColor: "#1c1c1e" }}
-        textColor="#FFFFFF"
-        isDarkModeEnabled
+        pickerContainerStyleIOS={{ backgroundColor: "#FFFFFF" }}
+        textColor="#0D1520"
+        isDarkModeEnabled={false}
       />
 
       <DateTimePickerModal
@@ -277,9 +274,9 @@ export const CarDetailsView = ({
         onCancel={() => setShowNextDatePicker(false)}
         confirmTextIOS="Tamam"
         cancelTextIOS="Vazgeç"
-        pickerContainerStyleIOS={{ backgroundColor: "#1c1c1e" }}
-        textColor="#FFFFFF"
-        isDarkModeEnabled
+        pickerContainerStyleIOS={{ backgroundColor: "#FFFFFF" }}
+        textColor="#0D1520"
+        isDarkModeEnabled={false}
       />
     </View>
   );

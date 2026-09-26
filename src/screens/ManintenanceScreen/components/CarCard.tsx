@@ -30,9 +30,13 @@ export const CarCard = ({ car, onDelete, onPress }: Props) => {
           <Text style={styles.carNickname}>
             {car.nickname || `${car.brand} ${car.model}`}
           </Text>
-          <Text style={styles.carTitle}>
-            {car.brand} {car.model}
-          </Text>
+          {/* Takma ad yoksa üst satır zaten "Marka Model" gösteriyor — aynısını
+              ikinci kez yazmayalım. */}
+          {car.nickname ? (
+            <Text style={styles.carTitle}>
+              {car.brand} {car.model}
+            </Text>
+          ) : null}
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
             <View style={styles.carYear}>
               <Text style={styles.carYearText}>{car.year}</Text>

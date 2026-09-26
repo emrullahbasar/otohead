@@ -124,9 +124,9 @@ function toNumber(raw: string): number {
   return parseFloat(s);
 }
 
-function format(value: number, minDecimals: number): string {
+function format(value: number, minDecimals: number, maxDecimals: number = 3): string {
   const decimals = (String(value).split('.')[1] || '').length;
-  return value.toFixed(Math.max(minDecimals, Math.min(decimals, 3)));
+  return value.toFixed(Math.max(minDecimals, Math.min(decimals, maxDecimals)));
 }
 
 const plausibleLiters = (n: number) => isFinite(n) && n >= 0.5 && n <= 300;
@@ -204,8 +204,19 @@ function findStation(rows: string[]): string | undefined {
       if (pattern.test(a)) return name;
     }
   }
-  // Marka bulunamadı: firma unvanının başını kullan ("DEMİRLER PETROL ÜRÜNLERİ OTO..." → "Demirler Petrol Ürünleri")
-  const first = rows.find(r => /[A-Za-zÇĞİÖŞÜçğıöşü]{3,}/.test(r));
+  // Marka bulunamadı: firma unvanının başını kullan ("DEMİRLER PETROL ÜRÜNLERİ OTO..." → "Demirler Petrol Ürünleri").
+  // Tarih/saat/fiş no/tutar gibi etiket satırları da 3+ harflik kelime içerebilir
+  // ("TARIH 25.09.2026") — bunlar firma adı değildir, atla.
+  const NOT_A_NAME = /\b(TARIH|SAAT|FIS|FATURA|MAKBUZ|POMPA|TABANCA|KM|MIKTAR|LITRE|FIYAT|TUTAR|TOPLAM|ODEME|ODENEN|NAKIT|KART|KDV|PLAKA)\b/;
+  const first = rows.find(r => {
+    if (!/[A-Za-zÇĞİÖŞÜçğıöşü]{3,}/.test(r)) return false;
+    const a = ascii(r);
+    if (NOT_A_NAME.test(a)) return false;
+    // Rakam ağırlıklı satırlar (ör. "25.09.2026 10:15") da isim olamaz.
+    const digits = (r.match(/\d/g) || []).length;
+    const letters = (r.match(/[A-Za-zÇĞİÖŞÜçğıöşü]/g) || []).length;
+    return letters > digits;
+  });
   if (!first) return undefined;
   const a = ascii(first);
   const cut = a.search(/\b(OTO|OTOMOTIV|GIDA|TURZ|TURIZM|SAN|TIC|INS|LTD|STI|A\.?S|ANONIM|LIMITED)\b/);
@@ -315,7 +326,10 @@ export function parseFuelReceipt(rawRows: string[], now: Date = new Date()): Rec
   }
 
   if (liters !== undefined) result.totalLiters   = format(liters, 2);
-  if (price  !== undefined) result.pricePerLiter = format(price, 2);
+  // Litre fiyatı Türkiye'de her zaman kuruş (2 ondalık) hassasiyetindedir —
+  // tutar/litre'den bölünerek hesaplandığında (yuvarlama farkı yüzünden)
+  // 3 ondalıklı, tuhaf görünen bir değer ("42.532") çıkmasın.
+  if (price  !== undefined) result.pricePerLiter = format(price, 2, 2);
   if (total  !== undefined) result.totalAmount   = format(total, 2);
 
   result.date     = findDate(rows, now);

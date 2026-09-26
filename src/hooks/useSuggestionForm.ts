@@ -58,6 +58,9 @@ export const useSuggestionForm = () => {
     if (!touched.fuel) return 'Yakıt tipi seçimi zorunludur.';
     if (!touched.gear) return 'Vites tipi seçimi zorunludur.';
     if (!form.extra.trim()) return 'Kullanım amacınızı açıklamanız zorunludur.';
+    // Değerlendirme formuyla tutarlı olsun diye aynı asgari uzunluk (tek
+    // kelimelik "iyi" gibi anlamsız bir cevap uzman için işe yaramıyordu).
+    if (form.extra.trim().length < 10) return 'Lütfen daha ayrıntılı bir açıklama yazın.';
     return null;
   };
 

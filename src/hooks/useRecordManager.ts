@@ -8,6 +8,7 @@ import {
 } from '../services/storage';
 import { getErrorMessage } from '../config/errors';
 import { checkKmDueForCar } from '../services/kmAlerts';
+import { cancelRecordReminders } from '../notifications';
 
 export const MAINTENANCE_TYPES = [
   'Periyodik Bakım', 'Sigorta', 'Kasko', 'Muayene', 'Triger Seti',
@@ -42,18 +43,27 @@ export const useRecordManager = (
     setShowRecordForm(false);
   };
 
+  // Kayıt zorunlu alanlarını kontrol eder; geçerliyse bu kayıt için kullanılacak
+  // kimliği döndürür. Hatırlatıcılar kurulmadan ÖNCE çağrılmalı — aksi halde
+  // kaydedilmeyen (doğrulaması geçmeyen) bir girişte bile alarm kuruluyordu.
+  const validateNewRecord = (): string | null => {
+    if (!recordType || !recordDate || !recordKm) {
+      Alert.alert('Hata', 'Tür, tarih ve kilometre zorunludur.');
+      return null;
+    }
+    if (!selectedCar) return null;
+    return Date.now().toString();
+  };
+
   const handleAddRecord = async (
+    recordId:      string,
     finalNextDate: string,
     finalNextKm:   string,
   ) => {
-    if (!recordType || !recordDate || !recordKm) {
-      Alert.alert('Hata', 'Tür, tarih ve kilometre zorunludur.');
-      return;
-    }
     if (!selectedCar) return;
 
     const newRecord: MaintenanceRecord = {
-      id:       Date.now().toString(),
+      id:       recordId,
       type:     recordType,
       date:     recordDate,
       km:       recordKm,
@@ -87,6 +97,9 @@ export const useRecordManager = (
           onPress: async () => {
             try {
               await deleteMaintenanceRecord(recordId);
+              // Bu kayda bağlı kurulmuş (gelecekteki) hatırlatıcıları da iptal et,
+              // yoksa silinen bir kayıt için yıllar sonra bildirim gelirdi.
+              await cancelRecordReminders(recordId);
               const updatedCar = {
                 ...selectedCar,
                 records: selectedCar.records.filter(r => r.id !== recordId),
@@ -127,6 +140,7 @@ export const useRecordManager = (
     recordNextKm,  setRecordNextKm,
     recordNote,    setRecordNote,
     recordPrice,   setRecordPrice,
+    validateNewRecord,
     handleAddRecord,
     handleDeleteRecord,
     handleUpdateRecord,

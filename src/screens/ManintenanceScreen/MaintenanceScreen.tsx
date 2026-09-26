@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import { useMaintenanceReminders } from '../../hooks/useMaintenanceReminders';
 import { MaintenanceRecord } from '../../types';
@@ -52,24 +52,54 @@ export default function MaintenanceScreen() {
   };
 
   const handleAddRecordWithReminder = async () => {
+    // Önce zorunlu alan doğrulaması: geçmezse kimliği null döner ve buradan
+    // çıkarız — hatırlatıcı KURULMADAN önce doğrulanmış olur. Eskiden doğrulama
+    // hatırlatıcı kurulduktan sonra yapılıyordu; kaydedilmeyen (hatalı) bir
+    // girişte bile "hayalet" alarm oluşuyordu.
+    const recordId = restMaintenance.validateNewRecord();
+    if (!recordId) return;
+
     // Hatırlatıcılar kurulmadan önce: aşırı büyük km atlamasında onay iste.
     if (selectedCar && !(await confirmKmJump(selectedCar.id, parseInt(recordKm, 10)))) return;
 
     const { nextDate, nextKm } = await reminders.scheduleForRecord(
-      carName, recordType, recordDate, recordKm,
+      recordId, carName, recordType, recordDate, recordKm,
       restMaintenance.recordNextDate,
       restMaintenance.recordNextKm,
     );
     if (nextDate) setRecordNextDate(nextDate);
     if (nextKm)   setRecordNextKm(nextKm);
-    await restMaintenance.handleAddRecord(nextDate, nextKm);
+    await restMaintenance.handleAddRecord(recordId, nextDate, nextKm);
   };
 
   const handleSaveEdit = async () => {
     if (!detailRecord) return;
-    const { nextDate, nextKm } = await reminders.scheduleForUpdate(
-      carName, editType, editDate, editKm, editNextDate, editNextKm,
-    );
+    if (!editType || !editDate || !editKm) {
+      Alert.alert('Hata', 'Tür, tarih ve kilometre zorunludur.');
+      return;
+    }
+
+    // Hatırlatmayı etkileyen hiçbir alan değişmediyse yeniden kurmaya gerek yok
+    // — hem gereksiz "ticari araç mı?" sorusunu tekrarlamaz hem de eskiden her
+    // "Kaydet" basışında (değişiklik olsun olmasın) hatırlatmaların çoğalmasına
+    // yol açan asıl sebebi ortadan kaldırır.
+    const remindableFieldsChanged =
+      editType !== detailRecord.type ||
+      editDate !== detailRecord.date ||
+      editKm   !== detailRecord.km ||
+      editNextDate !== (detailRecord.nextDate || '') ||
+      editNextKm   !== (detailRecord.nextKm   || '');
+
+    let nextDate = editNextDate;
+    let nextKm   = editNextKm;
+    if (remindableFieldsChanged) {
+      const result = await reminders.scheduleForUpdate(
+        detailRecord.id, carName, editType, editDate, editKm, editNextDate, editNextKm,
+      );
+      nextDate = result.nextDate;
+      nextKm   = result.nextKm;
+    }
+
     await handleUpdateRecord({
       ...detailRecord,
       type:     editType,

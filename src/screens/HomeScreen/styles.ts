@@ -151,7 +151,9 @@ export const styles = StyleSheet.create({
   },
   footerText: {
     ...t.typography.caption,
-    color: t.color.border.default,
+    // Eskiden border rengiyle (#E2E8F0) yazılıyordu — kontrastı 1,16:1, beyaz
+    // zeminde fiilen görünmüyordu ("Gizlilik ve Veriler" bağlantısı dahil).
+    color: t.color.text.muted,
   },
 });
 

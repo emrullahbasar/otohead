@@ -352,7 +352,8 @@ export const styles = StyleSheet.create({
     color: t.color.brand.secondary,
     marginBottom: t.spacing.xs,
     marginTop: t.spacing.md,
-    textTransform: 'uppercase',
+    // textTransform:'uppercase' kaldırıldı (Türkçe "i" -> yanlışlıkla "I" olur,
+    // "İ" olmalı) — etiketler artık zaten doğru Türkçe büyük harfle yazılı.
   },
   detailInput: {
     borderWidth: 1,
