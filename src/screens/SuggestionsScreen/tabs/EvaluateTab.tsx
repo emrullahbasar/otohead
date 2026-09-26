@@ -1,11 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator, Alert,
 } from 'react-native';
 import { styles } from '../styles';
 import { tokens } from '../../../config/tokens';
 import { SimpleRequestForm } from '../components/SimpleRequestForm';
+import { MessageHistoryButton } from '../components/MessageHistoryButton';
+import { ConversationModal } from '../components/ConversationModal';
+import { PremiumGate } from '../components/PremiumGate';
 import { useSimpleRequest } from '../../../hooks/useSimpleRequest';
+import { useConversationHistory } from '../../../hooks/useConversationHistory';
+import { useConsultingEntitlement } from '../../../hooks/useConsultingEntitlement';
 
 const t = tokens;
 
@@ -15,13 +20,37 @@ interface Props {
 
 export default function EvaluateTab({ evaluation }: Props) {
   const scrollRef = useRef<ScrollView>(null);
+  const history = useConversationHistory('evaluation');
+  const [showHistory, setShowHistory] = useState(false);
+  const entitled = useConsultingEntitlement();
+
+  const openHistory = () => {
+    setShowHistory(true);
+    history.load();
+  };
 
   useEffect(() => {
     if (evaluation.error) scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [evaluation.error]);
 
-  if (evaluation.result?.status === 'HAZIR' || evaluation.result?.status === 'GÖRÜLDÜ') {
+  // Hak bilgisi yüklenene kadar (ilk açılış, çok kısa) boş ekran yerine bir
+  // spinner göster — "önce kilitli, sonra açık" gibi bir yanıp sönme olmasın.
+  if (entitled === null) {
     return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={t.color.brand.primary} />
+      </View>
+    );
+  }
+
+  if (!entitled) {
+    return <PremiumGate />;
+  }
+
+  let content: React.ReactNode;
+
+  if (evaluation.result?.status === 'HAZIR' || evaluation.result?.status === 'GÖRÜLDÜ') {
+    content = (
       <ScrollView contentContainerStyle={{ padding: t.spacing.base }}>
         <View style={{ alignItems: 'center', marginBottom: t.spacing.xl }}>
           <Text style={{ fontSize: 44, marginBottom: t.spacing.md }}>🔎</Text>
@@ -43,10 +72,8 @@ export default function EvaluateTab({ evaluation }: Props) {
         </Pressable>
       </ScrollView>
     );
-  }
-
-  if (evaluation.result?.status === 'BEKLİYOR') {
-    return (
+  } else if (evaluation.result?.status === 'BEKLİYOR') {
+    content = (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: t.spacing['2xl'] }}>
         <Text style={{ fontSize: 44, marginBottom: t.spacing.base }}>⏳</Text>
         <Text style={[styles.header, { textAlign: 'center', marginBottom: t.spacing.sm }]}>
@@ -88,10 +115,8 @@ export default function EvaluateTab({ evaluation }: Props) {
         </Pressable>
       </View>
     );
-  }
-
-  if (evaluation.submitted) {
-    return (
+  } else if (evaluation.submitted) {
+    content = (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: t.spacing['2xl'] }}>
         <Text style={{ fontSize: 44, marginBottom: t.spacing.base }}>✅</Text>
         <Text style={[styles.header, { textAlign: 'center', marginBottom: t.spacing.sm }]}>
@@ -112,38 +137,54 @@ export default function EvaluateTab({ evaluation }: Props) {
         </Pressable>
       </View>
     );
+  } else {
+    content = (
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
+        keyboardShouldPersistTaps="handled"
+        // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 64 }}>
+          <Text style={styles.headerSub}>
+            Beğendiğiniz araç veya araçlar hakkında uzman görüşü alın.
+          </Text>
+        </View>
+        <SimpleRequestForm
+          ilanNo={evaluation.ilanNo}
+          setIlanNo={evaluation.setIlanNo}
+          message={evaluation.message}
+          setMessage={evaluation.setMessage}
+          loading={evaluation.loading}
+          error={evaluation.error}
+          onSubmit={evaluation.handleSubmit}
+          placeholder="Bu aracı almayı düşünüyorum, Fiyatı ve durumu hakkında uzman görüşü alabilir miyim?"
+          buttonText="🔎 Değerlendirme İste"
+          ilanNoLabel="İlan Numarası"
+          messageLabel="Değerlendirme İsteğiniz"
+          onMessageFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+          }}
+        />
+      </ScrollView>
+    );
   }
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
-      keyboardShouldPersistTaps="handled"
-      // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
-      keyboardDismissMode="on-drag"
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={{ padding: t.spacing.base, paddingBottom: 0 }}>
-        <Text style={styles.headerSub}>
-          Beğendiğiniz araç veya araçlar hakkında uzman görüşü alın.
-        </Text>
-      </View>
-      <SimpleRequestForm
-        ilanNo={evaluation.ilanNo}
-        setIlanNo={evaluation.setIlanNo}
-        message={evaluation.message}
-        setMessage={evaluation.setMessage}
-        loading={evaluation.loading}
-        error={evaluation.error}
-        onSubmit={evaluation.handleSubmit}
-        placeholder="Bu aracı almayı düşünüyorum, Fiyatı ve durumu hakkında uzman görüşü alabilir miyim?"
-        buttonText="🔎 Değerlendirme İste"
-        ilanNoLabel="İlan Numarası"
-        messageLabel="Değerlendirme İsteğiniz"
-        onMessageFocus={() => {
-          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-        }}
+    <View style={{ flex: 1 }}>
+      {content}
+      <MessageHistoryButton onPress={openHistory} />
+      <ConversationModal
+        visible={showHistory}
+        onClose={() => setShowHistory(false)}
+        title="Değerlendirme Geçmişi"
+        entries={history.entries}
+        loading={history.loading}
+        loaded={history.loaded}
+        error={history.error}
       />
-    </ScrollView>
+    </View>
   );
 }

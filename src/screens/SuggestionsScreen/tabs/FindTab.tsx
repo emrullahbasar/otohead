@@ -1,11 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator, Alert,
 } from 'react-native';
 import { styles } from '../styles';
 import { tokens } from '../../../config/tokens';
 import { SuggestionForm } from '../components/SuggestionForm';
+import { MessageHistoryButton } from '../components/MessageHistoryButton';
+import { ConversationModal } from '../components/ConversationModal';
 import { useSuggestion } from '../../../hooks/useSuggestion';
+import { useConversationHistory } from '../../../hooks/useConversationHistory';
 
 const t = tokens;
 
@@ -15,6 +18,13 @@ interface Props {
 
 export default function FindTab({ suggestion }: Props) {
   const scrollRef = useRef<ScrollView>(null);
+  const history = useConversationHistory('suggestion');
+  const [showHistory, setShowHistory] = useState(false);
+
+  const openHistory = () => {
+    setShowHistory(true);
+    history.load();
+  };
 
   // Doğrulama/gönderim hatası sayfanın üstünde gösterilir; kullanıcı aşağıdaki
   // düğmeye basmış olabilir, hatayı görsün diye yukarı kaydır.
@@ -22,8 +32,10 @@ export default function FindTab({ suggestion }: Props) {
     if (suggestion.error) scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [suggestion.error]);
 
+  let content: React.ReactNode;
+
   if (suggestion.suggestion?.status === 'HAZIR' || suggestion.suggestion?.status === 'GÖRÜLDÜ') {
-    return (
+    content = (
       <ScrollView contentContainerStyle={{ padding: t.spacing.base }}>
         <View style={{ alignItems: 'center', marginBottom: t.spacing.xl }}>
           <Text style={{ fontSize: 44, marginBottom: t.spacing.md }}>🚗</Text>
@@ -48,10 +60,8 @@ export default function FindTab({ suggestion }: Props) {
         </Pressable>
       </ScrollView>
     );
-  }
-
-  if (suggestion.suggestion?.status === 'BEKLİYOR') {
-    return (
+  } else if (suggestion.suggestion?.status === 'BEKLİYOR') {
+    content = (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: t.spacing['2xl'] }}>
         <Text style={{ fontSize: 44, marginBottom: t.spacing.base }}>⏳</Text>
         <Text style={[styles.header, { textAlign: 'center', marginBottom: t.spacing.sm }]}>
@@ -93,10 +103,8 @@ export default function FindTab({ suggestion }: Props) {
         </Pressable>
       </View>
     );
-  }
-
-  if (suggestion.submitted) {
-    return (
+  } else if (suggestion.submitted) {
+    content = (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: t.spacing['2xl'] }}>
         <Text style={{ fontSize: 44, marginBottom: t.spacing.base }}>✅</Text>
         <Text style={[styles.header, { textAlign: 'center', marginBottom: t.spacing.sm }]}>
@@ -117,51 +125,67 @@ export default function FindTab({ suggestion }: Props) {
         </Pressable>
       </View>
     );
+  } else {
+    content = (
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
+        keyboardShouldPersistTaps="handled"
+        // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 64 }}>
+          <Text style={styles.headerSub}>
+            Kriterlerinize uygun araç önerisi almak için aşağıdaki formu doldurun. Uzman ekibimiz en kısa sürede size geri dönüş yapacaktır.
+          </Text>
+        </View>
+        {suggestion.error !== '' && (
+          <View style={[styles.errorBox, { margin: t.spacing.base }]}>
+            <Text style={styles.errorText}>⚠️ {suggestion.error}</Text>
+          </View>
+        )}
+        {suggestion.checkingStatus && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: t.spacing.md }}>
+            <ActivityIndicator size="small" color={t.color.brand.primary} />
+            <Text style={{ ...t.typography.caption, color: t.color.text.muted, marginLeft: t.spacing.sm }}>
+              Önceki isteğiniz kontrol ediliyor...
+            </Text>
+          </View>
+        )}
+        <SuggestionForm
+          budget={suggestion.budget}       setBudget={suggestion.setBudget}
+          yearMin={suggestion.yearMin}     setYearMin={suggestion.setYearMin}
+          yearMax={suggestion.yearMax}     setYearMax={suggestion.setYearMax}
+          caseType={suggestion.caseType}   setCaseType={suggestion.setCaseType}
+          fuel={suggestion.fuel}
+          gear={suggestion.gear}
+          extra={suggestion.extra}         setExtra={suggestion.setExtra}
+          touched={suggestion.touched}
+          loading={suggestion.loading}
+          setModalType={suggestion.setModalType}
+          handleSearch={suggestion.handleSearch}
+          onExtraFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+          }}
+        />
+      </ScrollView>
+    );
   }
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      contentContainerStyle={{ paddingBottom: t.spacing['3xl'] }}
-      keyboardShouldPersistTaps="handled"
-      // iOS numeric/decimal klavyede Bitti tuşu yok; kullanıcı klavyeyi kaydırarak kapatabilsin.
-      keyboardDismissMode="on-drag"
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={{ padding: t.spacing.base, paddingBottom: 0 }}>
-              <Text style={styles.headerSub}>
-                Kriterlerinize uygun araç önerisi almak için aşağıdaki formu doldurun. Uzman ekibimiz en kısa sürede size geri dönüş yapacaktır.
-              </Text>
-            </View>
-      {suggestion.error !== '' && (
-        <View style={[styles.errorBox, { margin: t.spacing.base }]}>
-          <Text style={styles.errorText}>⚠️ {suggestion.error}</Text>
-        </View>
-      )}
-      {suggestion.checkingStatus && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: t.spacing.md }}>
-          <ActivityIndicator size="small" color={t.color.brand.primary} />
-          <Text style={{ ...t.typography.caption, color: t.color.text.muted, marginLeft: t.spacing.sm }}>
-            Önceki isteğiniz kontrol ediliyor...
-          </Text>
-        </View>
-      )}
-      <SuggestionForm
-        budget={suggestion.budget}       setBudget={suggestion.setBudget}
-        yearMin={suggestion.yearMin}     setYearMin={suggestion.setYearMin}
-        yearMax={suggestion.yearMax}     setYearMax={suggestion.setYearMax}
-        caseType={suggestion.caseType}   setCaseType={suggestion.setCaseType}
-        fuel={suggestion.fuel}
-        gear={suggestion.gear}
-        extra={suggestion.extra}         setExtra={suggestion.setExtra}
-        touched={suggestion.touched}
-        loading={suggestion.loading}
-        setModalType={suggestion.setModalType}
-        handleSearch={suggestion.handleSearch}
-        onExtraFocus={() => {
-          setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-        }}
+    <View style={{ flex: 1 }}>
+      {content}
+      <MessageHistoryButton onPress={openHistory} />
+      <ConversationModal
+        visible={showHistory}
+        onClose={() => setShowHistory(false)}
+        title="Öneri Geçmişi"
+        entries={history.entries}
+        loading={history.loading}
+        loaded={history.loaded}
+        error={history.error}
       />
-    </ScrollView>
+    </View>
   );
 }
