@@ -155,6 +155,9 @@ export const SuggestionForm = ({
         scrollEnabled
       />
       <Text style={styles.fieldHint}>
+        Size en uygun aracı önerebilmemiz için birkaç cümle (3-4 cümle) yazmanız yeterli olacaktır 🙂
+      </Text>
+      <Text style={styles.fieldHint}>
         Lütfen isim, telefon numarası gibi kişisel bilgi yazmayın.
       </Text>
 
