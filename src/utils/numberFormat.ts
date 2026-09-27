@@ -15,18 +15,23 @@ export const formatWholeNumberDisplay = (value: string | number): string => {
 };
 
 // Tutar alanları (₺): Türkçe kural — virgül ondalık ayracı, nokta binlik ayracı.
-// Son yazılan ayraç ondalık kabul edilir (en fazla 2 basamak), öncesindeki
-// ayraçlar binlik sayılıp ayıklanır. Depolama için kanonik "1250.75" (nokta
-// ondalık) döner; ekranda formatAmountDisplay ile Türkçe biçime çevrilir.
+// Yalnızca VİRGÜL ondalık ayıracı sayılır; NOKTA hiçbir zaman ondalık kabul
+// edilmez, her zaman binlik ayıracı sayılıp ayıklanır. Bunun nedeni: alan
+// kontrollü (controlled) bir TextInput — her tuş vuruşunda geri okunan metin,
+// formatAmountDisplay'in bir önceki tuşta EKLEDİĞİ binlik "." işaretini de
+// içeriyor (ör. "1.234"). Eskiden en son ayraç (nokta ya da virgül, hangisi
+// sonda ise) ondalık sayılıyordu; bu, kullanıcı henüz hiçbir ayraç yazmamışken
+// bile otomatik eklenen binlik noktasını "ondalık nokta" sanıp değeri 2
+// haneye kısaltıyordu (4. haneden sonra tutar büyüyemez hâle geliyordu).
 const MAX_AMOUNT_INT_DIGITS = 10;
 
 export const parseAmountInput = (value: string): string => {
-  const cleaned = value.replace(/[^\d.,]/g, '');
-  const lastSep = Math.max(cleaned.lastIndexOf(','), cleaned.lastIndexOf('.'));
-  if (lastSep === -1) return cleaned.replace(/[.,]/g, '').slice(0, MAX_AMOUNT_INT_DIGITS);
+  const cleaned = value.replace(/[^\d,]/g, ''); // nokta burada zaten atılır (binlik ayracı)
+  const lastComma = cleaned.lastIndexOf(',');
+  if (lastComma === -1) return cleaned.slice(0, MAX_AMOUNT_INT_DIGITS);
 
-  const intPart = cleaned.slice(0, lastSep).replace(/[.,]/g, '').slice(0, MAX_AMOUNT_INT_DIGITS);
-  const decPart = cleaned.slice(lastSep + 1).replace(/[.,]/g, '').slice(0, 2);
+  const intPart = cleaned.slice(0, lastComma).slice(0, MAX_AMOUNT_INT_DIGITS);
+  const decPart = cleaned.slice(lastComma + 1).slice(0, 2);
   return decPart ? `${intPart}.${decPart}` : intPart ? `${intPart}.` : '';
 };
 
@@ -38,7 +43,11 @@ export const amountToNumber = (value: string): number => {
 export const formatAmountDisplay = (value: string | number): string => {
   const str = typeof value === 'number' ? String(value) : value;
   if (!str) return '';
-  const [intRaw, decRaw] = parseAmountInput(str).split('.');
+  // NOT: burada parseAmountInput çağrılmaz — o fonksiyon artık yalnızca HAM
+  // kullanıcı tuş girişini (virgül=ondalık) ayrıştırır. Buraya gelen `value`
+  // ise zaten KANONİK biçimdedir (nokta=ondalık, ör. "1234.56" ya da "1234."),
+  // bu yüzden doğrudan "." üzerinden bölünür.
+  const [intRaw, decRaw] = str.split('.');
   const intNum = parseInt(intRaw || '0', 10);
   const intFmt = isNaN(intNum) ? '0' : intNum.toLocaleString('tr-TR');
   return decRaw !== undefined ? `${intFmt},${decRaw}` : intFmt;
