@@ -7,17 +7,19 @@ import { formatWholeNumberDisplay, parseWholeNumberInput } from '../../../utils/
 import { trUpper } from '../../../utils/textCase';
 
 interface Props {
+  name:        string; setName:     (val: string) => void;
   budget:      string; setBudget:   (val: string) => void;
   yearMin:     string; setYearMin:  (val: string) => void;
   yearMax:     string; setYearMax:  (val: string) => void;
+  brand:       string[];
   caseType:    string[];
   setCaseType: (val: string[]) => void;
   fuel:        string[];
   gear:        string[];
   extra:       string; setExtra:    (val: string) => void;
-  touched:     { caseType: boolean; fuel: boolean; gear: boolean };
+  touched:     { caseType: boolean; fuel: boolean; gear: boolean; brand: boolean };
   loading:     boolean;
-  setModalType:(val: 'fuel' | 'gear' | 'caseType' | null) => void;
+  setModalType:(val: 'fuel' | 'gear' | 'caseType' | 'brand' | null) => void;
   handleSearch:() => void;
   onExtraFocus?: () => void;
 }
@@ -35,9 +37,11 @@ const getLabel = (selected: string[], isTouched: boolean): string => {
 };
 
 export const SuggestionForm = ({
+  name, setName,
   budget, setBudget,
   yearMin, setYearMin,
   yearMax, setYearMax,
+  brand,
   caseType, setCaseType,
   fuel, gear,
   extra, setExtra,
@@ -45,14 +49,30 @@ export const SuggestionForm = ({
   loading, setModalType, handleSearch,
   onExtraFocus,
 }: Props) => {
+  const budgetRef  = useRef<TextInput>(null);
   const yearMinRef = useRef<TextInput>(null);
   const yearMaxRef = useRef<TextInput>(null);
   const extraRef   = useRef<TextInput>(null);
 
   return (
     <View style={styles.form}>
+      <Text style={styles.label}>{trUpper('İsminiz (isteğe bağlı)')}</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Size nasıl hitap edelim?"
+        placeholderTextColor={styles.selectorPlaceholder.color}
+        value={name}
+        onChangeText={setName}
+        maxLength={40}
+        returnKeyType="next"
+        onSubmitEditing={() => budgetRef.current?.focus()}
+        blurOnSubmit={false}
+        editable={!loading}
+      />
+
       <Text style={styles.label}>{trUpper('Bütçe (TL)')}</Text>
       <TextInput
+        ref={budgetRef}
         style={styles.input}
         placeholder="örn. 500.000"
         placeholderTextColor={styles.selectorPlaceholder.color}
@@ -96,6 +116,19 @@ export const SuggestionForm = ({
           editable={!loading}
         />
       </View>
+
+      <Text style={styles.label}>
+        {trUpper(`Marka Tercihi${brand.length > 0 ? ` (${brand.length} seçildi)` : ''}`)}
+      </Text>
+      <Pressable
+        style={styles.selector}
+        onPress={() => !loading && setModalType('brand')}
+      >
+        <Text style={touched.brand ? styles.selectorText : styles.selectorPlaceholder} numberOfLines={1}>
+          {getLabel(brand, touched.brand)}
+        </Text>
+        <Text style={styles.selectorArrow}>›</Text>
+      </Pressable>
 
       <Text style={styles.label}>
         {trUpper(`Kasa Tipi${caseType.length > 0 ? ` (${caseType.length} seçildi)` : ''}`)}
@@ -155,10 +188,10 @@ export const SuggestionForm = ({
         scrollEnabled
       />
       <Text style={styles.fieldHint}>
-        Size en uygun aracı önerebilmemiz için birkaç cümle (3-4 cümle) yazmanız yeterli olacaktır 🙂
+        Size en uygun aracı önerebilmemiz için birkaç cümle yazmanızı istiyoruz.
       </Text>
       <Text style={styles.fieldHint}>
-        Lütfen isim, telefon numarası gibi kişisel bilgi yazmayın.
+        Lütfen telefon numarası, adres gibi ek kişisel bilgi paylaşmayın.
       </Text>
 
       <Pressable

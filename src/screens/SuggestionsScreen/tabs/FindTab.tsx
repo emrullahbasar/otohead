@@ -153,9 +153,11 @@ export default function FindTab({ suggestion }: Props) {
           </View>
         )}
         <SuggestionForm
+          name={suggestion.name}           setName={suggestion.setName}
           budget={suggestion.budget}       setBudget={suggestion.setBudget}
           yearMin={suggestion.yearMin}     setYearMin={suggestion.setYearMin}
           yearMax={suggestion.yearMax}     setYearMax={suggestion.setYearMax}
+          brand={suggestion.brand}
           caseType={suggestion.caseType}   setCaseType={suggestion.setCaseType}
           fuel={suggestion.fuel}
           gear={suggestion.gear}

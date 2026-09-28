@@ -27,13 +27,14 @@ Yakıt fişini tararken fotoğraf kamera ile çekilir veya galeriden seçilir. F
 ### 2.3. Araç Danışmanlık ve Değerlendirme hizmeti
 Bu hizmeti kullanırsanız aşağıdaki veriler sunucumuza gönderilir:
 
-- Uygulamanın cihazınızda rastgele ürettiği **cihaz kimliği** (ad, e-posta veya telefon numarası içermez) ve bu kimliğe ait **doğrulama anahtarının özeti** (anahtarın kendisi saklanmaz)
-- Danışmanlık isteğinizdeki bilgiler: bütçe, model yılı aralığı, kasa/yakıt/vites tercihi, kullanım amacı açıklamanız
+- Uygulamanın cihazınızda rastgele ürettiği **cihaz kimliği** (e-posta veya telefon numarası içermez) ve bu kimliğe ait **doğrulama anahtarının özeti** (anahtarın kendisi saklanmaz)
+- Danışmanlık isteğinizdeki bilgiler: bütçe, model yılı aralığı, marka tercihi, kasa/yakıt/vites tercihi, kullanım amacı açıklamanız
 - Değerlendirme isteğinizdeki bilgiler: ilan numarası ve yazdığınız mesaj
+- İsteğe bağlı olarak paylaşırsanız, uzmanımızın size hitap etmesi için **isminiz** (bu alan boş bırakılabilir)
 - İstek tarihi, durumu ve uzmanımızın yazdığı yanıt
 - Bildirimlere izin verdiyseniz **bildirim adresi** (cihazınıza bildirim göndermek için kullanılan teknik kod)
 
-Serbest metin alanlarına **isim, telefon, adres gibi kişisel bilgi yazmamanızı** öneririz; yazdığınız her şey isteğinizle birlikte saklanır.
+İsim alanı dışındaki serbest metin alanlarına **telefon, adres gibi başka kişisel bilgi yazmamanızı** öneririz; yazdığınız her şey isteğinizle birlikte saklanır.
 
 ### 2.4. Ödemeler
 Ücretli paketlerin satın alınması Apple App Store veya Google Play üzerinden yapılır. **Kart ve ödeme bilgileriniz bize ulaşmaz.** Satın alma hakkınızı doğrulamak için mağazadan gelen işlem doğrulama bilgisi işlenebilir.

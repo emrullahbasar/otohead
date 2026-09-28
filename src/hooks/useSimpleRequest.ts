@@ -15,7 +15,7 @@ const DISMISSED_KEY = 'dismissedEvaluation';
 const UNCERTAIN = 'BELIRSIZ';
 
 const NO_RESULT: SimpleResult = {
-  status: 'YOK', answer: null, ilanNo: null, message: null, requestId: null, createdAt: null,
+  status: 'YOK', answer: null, name: null, ilanNo: null, message: null, requestId: null, createdAt: null,
 };
 
 // 'YOK' işareti "sunucuda bu cihaza ait istek yok" bilgisinin kesinleştiğini gösterir.
@@ -25,6 +25,7 @@ const persist = (result: SimpleResult) => {
 
 export const useSimpleRequest = () => {
   const [clientId,       setClientId]       = useState('');
+  const [name,           setName]           = useState('');
   const [ilanNo,         setIlanNo]         = useState('');
   const [message,        setMessage]        = useState('');
   const [loading,        setLoading]        = useState(false);
@@ -128,12 +129,15 @@ export const useSimpleRequest = () => {
 
     setLoading(true);
     try {
-      const payload: SimpleRequest = { clientId, ilanNo: ilanNo.trim(), message: message.trim() };
+      const payload: SimpleRequest = {
+        clientId, name: name.trim() || 'Belirtilmedi', ilanNo: ilanNo.trim(), message: message.trim(),
+      };
       await submitEvaluation(payload);
       setSubmitted(true);
       knownNoneRef.current = false;
       persist({ ...NO_RESULT, status: 'BEKLİYOR' });
       syncPushToken();
+      setName('');
       setIlanNo('');
       setMessage('');
       forceCheck();
@@ -161,6 +165,7 @@ export const useSimpleRequest = () => {
     setResult(null);
     persist(NO_RESULT);
     knownNoneRef.current = true;
+    setName('');
     setIlanNo('');
     setMessage('');
   }, []);
@@ -188,6 +193,7 @@ export const useSimpleRequest = () => {
 
   return {
     clientId,
+    name, setName,
     ilanNo, setIlanNo,
     message, setMessage,
     loading, checkingStatus, statusError, error,

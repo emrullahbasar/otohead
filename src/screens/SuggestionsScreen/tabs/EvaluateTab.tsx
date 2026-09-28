@@ -160,6 +160,8 @@ export default function EvaluateTab({ evaluation }: Props) {
           </Text>
         </View>
         <SimpleRequestForm
+          name={evaluation.name}
+          setName={evaluation.setName}
           ilanNo={evaluation.ilanNo}
           setIlanNo={evaluation.setIlanNo}
           message={evaluation.message}

@@ -5,8 +5,8 @@ import { theme } from '../../../config/theme';
 import { CASE_TYPES } from '../../../hooks/useSuggestion';
 
 interface SelectionModalProps {
-  modalType:    'fuel' | 'gear' | 'caseType' | null;
-  setModalType: (val: 'fuel' | 'gear' | 'caseType' | null) => void;
+  modalType:    'fuel' | 'gear' | 'caseType' | 'brand' | null;
+  setModalType: (val: 'fuel' | 'gear' | 'caseType' | 'brand' | null) => void;
   fuelTypes:    string[];
   gearTypes:    string[];
   setFuel:      (val: string[]) => void;
@@ -15,9 +15,12 @@ interface SelectionModalProps {
   setCaseType:  (val: string[]) => void;
   fuel:         string[];
   gear:         string[];
+  brands:       string[];
+  brand:        string[];
+  setBrand:     (val: string[]) => void;
   // Hiç dokunulmamışken "Fark Etmez" zaten seçiliymiş gibi ✓ görünmesin diye
   // (kullanıcı formu kapatınca "seçim zorunlu" hatasıyla şaşırıyordu).
-  touched:      { caseType: boolean; fuel: boolean; gear: boolean };
+  touched:      { caseType: boolean; fuel: boolean; gear: boolean; brand: boolean };
 }
 
 export const SelectionModal = ({
@@ -26,6 +29,7 @@ export const SelectionModal = ({
   setFuel, setGear,
   caseType, setCaseType,
   fuel, gear,
+  brands, brand, setBrand,
   touched,
 }: SelectionModalProps) => {
 
@@ -50,6 +54,13 @@ export const SelectionModal = ({
     gear.includes(type)
       ? setGear(gear.filter(t => t !== type))
       : setGear([...gear, type]);
+  };
+
+  const toggleBrand = (type: string) => {
+    if (type === 'Fark Etmez') { setBrand([]); return; }
+    brand.includes(type)
+      ? setBrand(brand.filter(t => t !== type))
+      : setBrand([...brand, type]);
   };
 
   const renderCheckList = (
@@ -101,6 +112,18 @@ export const SelectionModal = ({
       </Pressable>
     </Modal>
   );
+
+  if (modalType === 'brand') {
+    return renderCheckList(
+      ['Fark Etmez', ...brands],
+      brand,
+      toggleBrand,
+      () => setModalType(null),
+      'Marka Tercihi',
+      touched.brand,
+      'Birden fazla seçebilirsiniz',
+    );
+  }
 
   if (modalType === 'caseType') {
     return renderCheckList(

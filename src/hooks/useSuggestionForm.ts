@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 
-export type ModalType = 'fuel' | 'gear' | 'caseType' | null;
+export type ModalType = 'fuel' | 'gear' | 'caseType' | 'brand' | null;
 
 interface SuggestionForm {
+  name:     string;
   budget:   string;
   yearMin:  string;
   yearMax:  string;
+  brand:    string[];
   caseType: string[];
   fuel:     string[];
   gear:     string[];
@@ -13,21 +15,22 @@ interface SuggestionForm {
 }
 
 const INITIAL_FORM: SuggestionForm = {
-  budget: '', yearMin: '', yearMax: '',
-  caseType: [], fuel: [], gear: [], extra: '',
+  name: '', budget: '', yearMin: '', yearMax: '',
+  brand: [], caseType: [], fuel: [], gear: [], extra: '',
 };
 
-// Kasa/Yakıt "Fark Etmez" seçilince boş diziye döner (SelectionModal), bu yüzden
-// "hiç dokunulmadı" ile "Fark Etmez seçildi" durumunu ayırt etmek için ayrı bir
-// touched bayrağı tutuyoruz — yoksa geçerli bir "Fark Etmez" seçimi de zorunluluk
-// hatası olarak reddedilir.
+// Kasa/Yakıt/Marka "Fark Etmez" seçilince boş diziye döner (SelectionModal), bu
+// yüzden "hiç dokunulmadı" ile "Fark Etmez seçildi" durumunu ayırt etmek için ayrı
+// bir touched bayrağı tutuyoruz — yoksa geçerli bir "Fark Etmez" seçimi de
+// zorunluluk hatası olarak reddedilir.
 interface Touched {
   caseType: boolean;
   fuel:     boolean;
   gear:     boolean;
+  brand:    boolean;
 }
 
-const INITIAL_TOUCHED: Touched = { caseType: false, fuel: false, gear: false };
+const INITIAL_TOUCHED: Touched = { caseType: false, fuel: false, gear: false, brand: false };
 
 export const useSuggestionForm = () => {
   const [form,      setForm]      = useState<SuggestionForm>(INITIAL_FORM);
@@ -38,7 +41,7 @@ export const useSuggestionForm = () => {
     field: K, value: SuggestionForm[K]
   ) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    if (field === 'caseType' || field === 'fuel' || field === 'gear') {
+    if (field === 'caseType' || field === 'fuel' || field === 'gear' || field === 'brand') {
       setTouched(prev => ({ ...prev, [field]: true }));
     }
   }, []);
@@ -54,6 +57,7 @@ export const useSuggestionForm = () => {
     if (parseInt(form.yearMin, 10) < 1990 || parseInt(form.yearMax, 10) > new Date().getFullYear() + 1) {
       return 'Geçerli bir yıl aralığı giriniz.';
     }
+    if (!touched.brand) return 'Marka tercihi seçimi zorunludur.';
     if (!touched.caseType) return 'Kasa tipi seçimi zorunludur.';
     if (!touched.fuel) return 'Yakıt tipi seçimi zorunludur.';
     if (!touched.gear) return 'Vites tipi seçimi zorunludur.';
@@ -74,9 +78,11 @@ export const useSuggestionForm = () => {
 
   const buildPayload = (clientId: string) => ({
     clientId,
+    name:        form.name.trim()                                      || 'Belirtilmedi',
     budget:      form.budget,
     yearMin:     form.yearMin,
     yearMax:     form.yearMax,
+    brand:       form.brand.length > 0    ? form.brand.join(', ')    : 'Belirtilmedi',
     caseType:    form.caseType.length > 0 ? form.caseType.join(', ') : 'Belirtilmedi',
     fuel:        form.fuel.length > 0     ? form.fuel.join(', ')     : 'Belirtilmedi',
     gear:        form.gear.length > 0     ? form.gear.join(', ')     : 'Belirtilmedi',

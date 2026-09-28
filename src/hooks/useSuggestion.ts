@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSuggestionForm } from './useSuggestionForm';
 import { useSuggestionStatus } from './useSuggestionStatus';
 import { submitSuggestion, syncPushToken } from '../services/suggestionApi';
+import { fetchBrands } from '../services/carApi';
 
 export const FUEL_TYPES  = ['Benzin', 'Dizel', 'LPG', 'Hybrid', 'Elektrik', 'Fark Etmez'];
 export const GEAR_TYPES  = ['Manuel', 'Otomatik', 'Fark Etmez'];
@@ -15,6 +16,10 @@ export const useSuggestion = () => {
 
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
+  // Marka listesi Araç Yönetimi'ndeki aynı yerel veriden (cars.json) gelir —
+  // uzman ekibin uğraşmayacağı markalar en baştan elenebilsin diye eklendi.
+  const [brands,  setBrands]  = useState<string[]>([]);
+  useEffect(() => { fetchBrands().then(setBrands).catch(() => {}); }, []);
 
   const handleSearch = useCallback(async () => {
     setError('');
@@ -46,9 +51,12 @@ export const useSuggestion = () => {
 
   return {
     // Form
+    name:     formHook.form.name,     setName:     (v: string)   => formHook.updateField('name', v),
     budget:   formHook.form.budget,   setBudget:   (v: string)   => formHook.updateField('budget', v),
     yearMin:  formHook.form.yearMin,  setYearMin:  (v: string)   => formHook.updateField('yearMin', v),
     yearMax:  formHook.form.yearMax,  setYearMax:  (v: string)   => formHook.updateField('yearMax', v),
+    brand:    formHook.form.brand,    setBrand:    (v: string[]) => formHook.updateField('brand', v),
+    brands,
     caseType: formHook.form.caseType, setCaseType: (v: string[]) => formHook.updateField('caseType', v),
     fuel:     formHook.form.fuel,     setFuel:     (v: string[]) => formHook.updateField('fuel', v),
     gear:     formHook.form.gear,     setGear:     (v: string[]) => formHook.updateField('gear', v),

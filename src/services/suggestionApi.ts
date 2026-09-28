@@ -22,9 +22,11 @@ export interface SuggestionResult {
   status:         SuggestionStatus;
   recommendation: string | null;
   requestId:      string | null;
+  name:           string | null;
   budget:         string | null;
   yearMin:        string | null;
   yearMax:        string | null;
+  brand:          string | null;
   fuel:           string | null;
   caseType:       string[] | string | null;
   createdAt:      string | null;
@@ -33,6 +35,7 @@ export interface SuggestionResult {
 export interface SimpleResult {
   status:    SuggestionStatus;
   answer:    string | null;
+  name:      string | null;
   ilanNo:    string | null;
   message:   string | null;
   requestId: string | null;
@@ -41,9 +44,11 @@ export interface SimpleResult {
 
 export interface SubmitRequest {
   clientId:    string;
+  name:        string;
   budget:      string;
   yearMin:     string;
   yearMax:     string;
+  brand:       string;
   caseType:    string;
   fuel:        string;
   gear:        string;
@@ -52,15 +57,18 @@ export interface SubmitRequest {
 
 export interface SimpleRequest {
   clientId: string;
+  name:     string;
   ilanNo:   string;
   message:  string;
 }
 
 export interface SuggestionHistoryItem {
   requestId:      string;
+  name:           string | null;
   budget:         string;
   yearMin:        string;
   yearMax:        string;
+  brand:          string | null;
   fuel:           string;
   caseType:       string[] | string;
   createdAt:      string;
@@ -69,6 +77,7 @@ export interface SuggestionHistoryItem {
 
 export interface EvaluationHistoryItem {
   requestId: string;
+  name:      string | null;
   ilanNo:    string | null;
   message:   string | null;
   createdAt: string;

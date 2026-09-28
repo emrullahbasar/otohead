@@ -200,7 +200,7 @@ function doPost(e) {
     // yenisini gönderebilsin diye — eskiden bekleyen bir istek asla iptal
     // edilemiyordu, uzman hiç yanıtlamazsa kullanıcı sonsuza kadar kilitli kalırdı.
     if (action === 'cancel') {
-      return handleCancel(data, SHEET_NAME, findRowByClientId, 11);
+      return handleCancel(data, SHEET_NAME, findRowByClientId, 13);
     }
     if (action === 'cancelEval') {
       return handleCancel(data, EVAL_SHEET_NAME, findLastEvalRow_, 6);
@@ -245,6 +245,8 @@ function handleSubmit(data) {
     sheet.appendRow([
       requestId,
       sanitizeCell_(data.clientId),
+      sanitizeCell_(data.name || 'Belirtilmedi'),
+      sanitizeCell_(data.brand || 'Belirtilmedi'),
       sanitizeCell_(data.budget),
       sanitizeCell_(data.yearMin),
       sanitizeCell_(data.yearMax),
@@ -288,6 +290,8 @@ function handleCheck(clientId) {
     fuel: row.fuel,
     caseType: row.caseType,
     createdAt: row.createdAt,
+    name: row.name || null,
+    brand: row.brand || null,
   });
 }
 
@@ -300,7 +304,7 @@ function handleCheck(clientId) {
 function handleMarkSeen(data) {
   const isEval = data.target === 'evaluation';
   const sheetName = isEval ? EVAL_SHEET_NAME : SHEET_NAME;
-  const statusCol = isEval ? 6 : 11;
+  const statusCol = isEval ? 6 : 13;
   const sheet = getSS_().getSheetByName(sheetName);
   const row = isEval ? findLastEvalRow_(sheet, data.clientId) : findRowByClientId(sheet, data.clientId);
 
@@ -323,21 +327,23 @@ function findRowByClientId(sheet, clientId) {
   for (let i = ids.length - 1; i >= 0; i--) {
     if (String(ids[i][0]) === String(clientId)) {
       const rowIndex = i + 2;
-      const v = sheet.getRange(rowIndex, 1, 1, 12).getValues()[0];
+      const v = sheet.getRange(rowIndex, 1, 1, 14).getValues()[0];
       return {
         rowIndex: rowIndex,
         requestId: v[0],
         clientId: v[1],
-        budget: v[2],
-        yearMin: v[3],
-        yearMax: v[4],
-        caseType: v[5],
-        fuel: v[6],
-        gear: v[7],
-        description: v[8],
-        createdAt: v[9],
-        status: v[10],
-        recommendation: v[11],
+        name: v[2],
+        brand: v[3],
+        budget: v[4],
+        yearMin: v[5],
+        yearMax: v[6],
+        caseType: v[7],
+        fuel: v[8],
+        gear: v[9],
+        description: v[10],
+        createdAt: v[11],
+        status: v[12],
+        recommendation: v[13],
       };
     }
   }
@@ -403,7 +409,8 @@ function handleEvalSubmit(data) {
       sanitizeCell_(data.message),
       now,
       'BEKLİYOR',
-      ''
+      '',
+      sanitizeCell_(data.name || 'Belirtilmedi')
     ]);
     return response({ success: true, requestId });
   } finally {
@@ -421,7 +428,7 @@ function findLastEvalRow_(sheet, clientId) {
   const ids = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
   for (let i = ids.length - 1; i >= 0; i--) {
     if (String(ids[i][0]) === String(clientId)) {
-      const v = sheet.getRange(i + 2, 1, 1, 7).getValues()[0];
+      const v = sheet.getRange(i + 2, 1, 1, 8).getValues()[0];
       return {
         rowIndex: i + 2,
         requestId: v[0],
@@ -430,6 +437,7 @@ function findLastEvalRow_(sheet, clientId) {
         createdAt: v[4],
         status: v[5],
         answer: v[6],
+        name: v[7],
       };
     }
   }
@@ -454,6 +462,7 @@ function handleSimpleCheck(data, sheetName) {
     message:   row.message || null,
     requestId: row.requestId || null,
     createdAt: row.createdAt || null,
+    name:      row.name || null,
   });
 }
 
@@ -483,18 +492,19 @@ const HISTORY_LIMIT = 20;
 function handleHistory(data) {
   const isEval = data.target === 'evaluation';
   const sheetName = isEval ? EVAL_SHEET_NAME : SHEET_NAME;
-  const numCols = isEval ? 7 : 12;
+  const numCols = isEval ? 8 : 14;
   const sheet = getSS_().getSheetByName(sheetName);
   const rows = collectRowsByClientId_(sheet, data.clientId, numCols, HISTORY_LIMIT);
 
   const items = rows
     .map(v => isEval ? {
       requestId: v[0], ilanNo: v[2] || null, message: v[3] || null,
-      createdAt: v[4], status: v[5], answer: v[6] || null,
+      createdAt: v[4], status: v[5], answer: v[6] || null, name: v[7] || null,
     } : {
-      requestId: v[0], budget: v[2], yearMin: v[3], yearMax: v[4],
-      caseType: v[5], fuel: v[6], gear: v[7], description: v[8],
-      createdAt: v[9], status: v[10], recommendation: v[11] || null,
+      requestId: v[0], budget: v[4], yearMin: v[5], yearMax: v[6],
+      caseType: v[7], fuel: v[8], gear: v[9], description: v[10],
+      createdAt: v[11], status: v[12], recommendation: v[13] || null,
+      name: v[2] || null, brand: v[3] || null,
     })
     .filter(item => item.status === 'HAZIR' || item.status === 'GÖRÜLDÜ');
 
@@ -580,7 +590,7 @@ function onSheetEdit(e) {
 
     let statusCol, answerCol, title, body, type;
     if (name === SHEET_NAME) {
-      statusCol = 11; answerCol = 12; type = 'suggestion';
+      statusCol = 13; answerCol = 14; type = 'suggestion';
       title = '🚗 Öneriniz Hazır!';
       body = 'Uzmanımız araç önerinizi hazırladı. Görmek için uygulamayı açın.';
     } else if (name === EVAL_SHEET_NAME) {

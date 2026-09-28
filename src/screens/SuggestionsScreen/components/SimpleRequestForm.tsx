@@ -6,6 +6,8 @@ import { styles } from '../styles';
 import { trUpper } from '../../../utils/textCase';
 
 interface Props {
+  name:         string;
+  setName:      (v: string) => void;
   ilanNo:       string;
   setIlanNo:    (v: string) => void;
   message:      string;
@@ -21,6 +23,7 @@ interface Props {
 }
 
 export const SimpleRequestForm = ({
+  name, setName,
   ilanNo, setIlanNo,
   message, setMessage,
   loading, error,
@@ -31,6 +34,7 @@ export const SimpleRequestForm = ({
   messageLabel,
   onMessageFocus,
 }: Props) => {
+  const ilanNoRef  = useRef<TextInput>(null);
   const messageRef = useRef<TextInput>(null);
 
   return (
@@ -41,8 +45,23 @@ export const SimpleRequestForm = ({
         </View>
       )}
 
+      <Text style={styles.label}>{trUpper('İsminiz (isteğe bağlı)')}</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Size nasıl hitap edelim?"
+        placeholderTextColor={styles.selectorPlaceholder.color}
+        value={name}
+        onChangeText={setName}
+        maxLength={40}
+        returnKeyType="next"
+        onSubmitEditing={() => ilanNoRef.current?.focus()}
+        blurOnSubmit={false}
+        editable={!loading}
+      />
+
       <Text style={styles.label}>{trUpper(ilanNoLabel)}</Text>
       <TextInput
+        ref={ilanNoRef}
         style={styles.input}
         placeholder="örn. 1181405293"
         placeholderTextColor={styles.selectorPlaceholder.color}
@@ -74,7 +93,7 @@ export const SimpleRequestForm = ({
         editable={!loading}
       />
       <Text style={styles.fieldHint}>
-        Lütfen isim, telefon numarası gibi kişisel bilgi yazmayın.
+        Lütfen telefon numarası, adres gibi ek kişisel bilgi paylaşmayın.
       </Text>
 
       <Pressable

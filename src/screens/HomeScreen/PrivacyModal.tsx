@@ -75,7 +75,9 @@ export default function PrivacyModal({ visible, onClose }: Props) {
           </Text>
           <Text style={s.body}>
             Yalnızca Araç Danışmanlık ve Değerlendirme isteklerinizde yazdığınız bilgiler, rastgele bir
-            cihaz kimliğiyle birlikte uzman ekibimize iletilir.
+            cihaz kimliğiyle birlikte uzman ekibimize iletilir. Bu formlarda isteğe bağlı olarak
+            paylaşabileceğiniz isim, yalnızca uzmanın size hitap etmesi içindir; telefon numarası,
+            adres gibi başka kişisel bilgi istenmez ve paylaşmamanız önerilir.
           </Text>
 
           <Text style={s.sectionTitle}>CİHAZ KİMLİĞİNİZ</Text>

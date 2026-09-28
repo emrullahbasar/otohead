@@ -121,6 +121,9 @@ export default function SuggestionsScreen() {
         setFuel={suggestion.setFuel}
         gear={suggestion.gear}
         setGear={suggestion.setGear}
+        brands={suggestion.brands}
+        brand={suggestion.brand}
+        setBrand={suggestion.setBrand}
         touched={suggestion.touched}
       />
     </KeyboardAvoidingView>

@@ -22,7 +22,7 @@ const toEntry = (target: ConversationTarget, item: SuggestionHistoryItem | Evalu
     const s = item as SuggestionHistoryItem;
     return {
       key: s.requestId,
-      requestText: `${s.budget || ''} TL${s.yearMin ? ` • ${s.yearMin}-${s.yearMax}` : ''}${s.fuel ? ` • ${s.fuel}` : ''}`,
+      requestText: `${s.budget || ''} TL${s.yearMin ? ` • ${s.yearMin}-${s.yearMax}` : ''}${s.brand && s.brand !== 'Belirtilmedi' ? ` • ${s.brand}` : ''}${s.fuel ? ` • ${s.fuel}` : ''}`,
       date: s.createdAt,
       answer: s.recommendation || '',
     };
