@@ -84,7 +84,7 @@ export default function FuelReceiptScanner({ onDataExtracted }: Props) {
     // gerekirse kendi izin akışını zaten iç mekanizmasıyla yönetir.
 
     const options: ImagePicker.ImagePickerOptions = {
-      mediaTypes: 'images' as any,
+      mediaTypes: 'images',
       quality: 1,
       allowsEditing: !fromCamera,
     };
