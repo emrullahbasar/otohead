@@ -7,8 +7,39 @@ import { tokens } from '../../../config/tokens';
 import { SellEstimateForm } from '../components/SellEstimateForm';
 import { SellSelectionModal } from '../components/SellSelectionModal';
 import { useSellEstimate } from '../../../hooks/useSellEstimate';
+import { formatWholeNumberDisplay } from '../../../utils/numberFormat';
 
 const t = tokens;
+
+const PURE_NUMBER = /^[\d.\s]+$/;
+const RANGE_SEP = /\s*[-–]\s*/;
+
+// Yalnızca rakam/nokta/boşluktan oluşan bir parçayı "1.750.000" biçimine
+// çevirir; değilse (boşsa) null döner.
+const formatIfNumeric = (part: string): string | null => {
+  if (!PURE_NUMBER.test(part)) return null;
+  const digits = part.replace(/[^\d]/g, '');
+  return digits ? formatWholeNumberDisplay(digits) : null;
+};
+
+// Fiyat, uzmanın Sheets'e elle yazdığı serbest metin — tek rakam ("1750000"),
+// noktalı rakam ("1.750.000") ya da aralık ("750.000-850.000") olabilir;
+// hepsi noktalanıp tek "TL" ekiyle gösterilir. Uzman bunların dışında bir şey
+// (harf, açıklama) yazmışsa olduğu gibi gösterilir, bozulmasın diye dokunulmaz.
+const formatPrice = (raw: string | number): string => {
+  // Uzman Sheets hücresine salt rakam yazarsa sunucu bunu string değil
+  // SAYI olarak döndürür (Google Sheets hücre tipi) — String() ile normalize.
+  const asString = String(raw).trim();
+
+  const rangeParts = asString.split(RANGE_SEP);
+  if (rangeParts.length === 2) {
+    const [a, b] = rangeParts.map(formatIfNumeric);
+    if (a && b) return `${a} - ${b} TL`;
+  }
+
+  const single = formatIfNumeric(asString);
+  return single ? `${single} TL` : asString;
+};
 
 interface Props {
   sell: ReturnType<typeof useSellEstimate>;
@@ -38,11 +69,17 @@ export default function SellTab({ sell, onBack }: Props) {
         <Text style={{ ...t.typography.bodySm, color: t.color.text.muted, textAlign: 'center' }}>
           Uzmanlarımızın aracınız için belirlediği piyasa rakamı
         </Text>
-        <Text style={{
-          fontSize: 40, fontWeight: '800', color: t.color.success.default,
-          textAlign: 'center', marginTop: t.spacing.sm, marginBottom: t.spacing.xl,
-        }}>
-          {sell.result?.price || '—'}
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.4}
+          style={{
+            fontSize: 40, fontWeight: '800', color: t.color.success.default,
+            textAlign: 'center', marginTop: t.spacing.sm, marginBottom: t.spacing.xl,
+            maxWidth: '100%',
+          }}
+        >
+          {sell.result?.price ? formatPrice(sell.result.price) : '—'}
         </Text>
         <Pressable style={{ padding: t.spacing.sm }} onPress={sell.reset}>
           <Text style={{ ...t.typography.bodySm, color: t.color.brand.primary, textAlign: 'center', fontWeight: '600' }}>
