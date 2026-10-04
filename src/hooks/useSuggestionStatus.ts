@@ -15,6 +15,7 @@ const UNCERTAIN = 'BELIRSIZ';
 const NO_SUGGESTION: SuggestionResult = {
   status: 'YOK', recommendation: null, requestId: null, name: null, budget: null,
   yearMin: null, yearMax: null, brand: null, fuel: null, caseType: null, createdAt: null,
+  remaining: null,
 };
 
 // Son bilinen durum yerelde saklanır: sekme açılırken sunucu cevabını beklemeden

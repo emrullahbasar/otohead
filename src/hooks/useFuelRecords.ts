@@ -43,7 +43,6 @@ export const useFuelRecords = (
 
   const handleCalculateAndSave = useCallback(async (
     record: FuelForm,
-    currentKm: string,
   ): Promise<boolean> => {
     if (!selectedCarId) return false;
     if (!record.pricePerLiter || !record.totalLiters || !record.currentKm) {

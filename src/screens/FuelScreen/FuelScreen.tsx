@@ -3,6 +3,7 @@ import {
   View, Text, Pressable, StyleSheet, ActivityIndicator, ScrollView,
   Platform, KeyboardAvoidingView,
 } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useFuel } from '../../hooks/useFuel';
 import FuelAnalysisView from './FuelAnalysisView';
 import FuelFormView from './FuelFormView';
@@ -10,17 +11,21 @@ import FuelHistoryView from './FuelHistoryView';
 import { styles } from './styles';
 import { tokens } from '../../config/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { MainTabParamList } from '../../navigation/types';
 
 const t = tokens;
 
+type FuelRouteProp = RouteProp<MainTabParamList, 'Yakıt'>;
+
 export default function FuelScreen() {
+  const route = useRoute<FuelRouteProp>();
   const {
-    cars, selectedCar, selectedCarId, handleSelectCar, loadingCars,
+    cars, selectedCarId, handleSelectCar, loadingCars,
     record, history, filteredHistory,
     filter, setFilter, analysis, pendingAnalysis,
     updateField, handleReceiptScanned,
     handleCalculateAndSave, handleDeleteRecord,
-  } = useFuel();
+  } = useFuel(route.params?.carId, route.params?.ts);
 
   return (
     <KeyboardAvoidingView

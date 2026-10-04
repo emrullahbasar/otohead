@@ -1,9 +1,87 @@
 const SPREADSHEET_ID = '1vFE9pWV26YolJaNOlpeGJevL5BXjsRIZ60Dhid0Fmqo';
 const SHEET_NAME = 'Araç Öneri';
-const EVAL_SHEET_NAME = 'Değerlendirme';
+const EVAL_SHEET_NAME = 'Alış Değerlendirme';
+const SELL_SHEET_NAME = 'Satış Değerlendirme';
 const CLIENTS_SHEET_NAME = 'Clients';
+// "Satış Değerlendirme" sayfasındaki 11 kaporta parçası sütunu, önden arkaya doğru —
+// handleSellSubmit/findLastSellRow_ bu sırayla D-N sütunlarına yazar/okur.
+const SELL_PANEL_COLUMNS = [
+  'Kaput', 'SolÖnÇamurluk', 'SağÖnÇamurluk', 'SolÖnKapı', 'SağÖnKapı',
+  'Tavan', 'SolArkaKapı', 'SağArkaKapı', 'SolArkaÇamurluk', 'SağArkaÇamurluk',
+  'Bagaj',
+];
 const MAX_CELL_LENGTH = 2000; // tek hücreye yazılacak metin üst sınırı
 const CLIENT_CACHE_TTL = 3600; // saniye — doğrulanmış secret hash'i önbellekte bu kadar tutulur
+const MAX_FOLLOWUPS = 5; // uzman ilk kez yanıtladıktan sonra kullanıcının gönderebileceği takip mesajı hakkı
+
+// Sheets sekmesi her açıldığında üstte "Danışmanlık" menüsü belirir — uzman
+// yanıt hücresini elle silip yeniden yazmak zorunda kalmasın diye eklendi
+// (aksi halde önceki yanıtı silmezse yeni yanıtı nereye/nasıl ekleyeceğini
+// bilemiyordu, silerse de müşteri tarafında o mesaj sohbetten kaybolurdu).
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Danışmanlık')
+    .addItem('Seçili Satıra Yanıt Ekle', 'addReplyToActiveRow')
+    .addToUi();
+}
+
+// Aktif hücrenin bulunduğu satıra ("Araç Öneri", "Alış Değerlendirme" veya
+// "Satış Değerlendirme" sayfasında) yeni bir uzman yanıtı ekler: önceki yanıt SİLİNMEZ, boş satırla
+// ayrılmış şekilde altına eklenir ve durum HAZIR'a çekilir. Sonuç, istemcide
+// (bkz. useConversationHistory.ts#splitExpertBlocks) her yanıtın kendi ayrı
+// mesaj balonu olarak görünmesidir — uzmanın tek yapması gereken bu menüyü
+// kullanıp yeni yanıt metnini yazmak, hücreyle hiç uğraşmasına gerek yok.
+function addReplyToActiveRow() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const name = sheet.getName();
+
+  let answerCol, statusCol;
+  if (name === SHEET_NAME) { answerCol = 14; statusCol = 13; }
+  else if (name === EVAL_SHEET_NAME) { answerCol = 8; statusCol = 7; }
+  else if (name === SELL_SHEET_NAME) { answerCol = 23; statusCol = 22; }
+  else {
+    ui.alert('Bu menü yalnızca "Araç Öneri", "Alış Değerlendirme" veya "Satış Değerlendirme" sayfalarında çalışır.');
+    return;
+  }
+
+  const row = sheet.getActiveCell().getRow();
+  if (row < 2) {
+    ui.alert('Lütfen bir istek satırı seçin (ilk satır başlık satırıdır).');
+    return;
+  }
+
+  const result = ui.prompt('Yanıt Ekle', 'Müşteriye gönderilecek yanıtı yazın:', ui.ButtonSet.OK_CANCEL);
+  if (result.getSelectedButton() !== ui.Button.OK) return;
+  const reply = sanitizeCell_(String(result.getResponseText() || '').trim());
+  if (!reply) return;
+
+  const cell = sheet.getRange(row, answerCol);
+  const existing = String(cell.getValue() || '').trim();
+  cell.setValue(existing ? existing + '\n\n' + reply : reply);
+  sheet.getRange(row, statusCol).setValue('HAZIR');
+
+  // Bildirim burada DOĞRUDAN gönderilir, onSheetEdit tetikleyicisinin bu iki
+  // setValue çağrısını yakalamasına güvenilmez: onEdit'in oldValue/value
+  // ayrımı script kaynaklı düzenlemelerde (özellikle 2., 3. yanıt gibi zaten
+  // bir kez HAZIR olmuş bir satırda) güvenilir çalışmıyordu — kullanıcı ilk
+  // yanıttan sonraki bildirimlerin gitmediğini bildirdi. pushSent_ önbellek
+  // damgası, onSheetEdit'in aynı düzenlemeyi görüp bildirimi bir daha
+  // göndermesini (çift bildirim) engeller.
+  const clientId = String(sheet.getRange(row, 2).getValue());
+  const token = getPushTokenFor_(clientId);
+  if (token) {
+    const type = name === EVAL_SHEET_NAME ? 'evaluation' : name === SELL_SHEET_NAME ? 'sell' : 'suggestion';
+    const title = name === EVAL_SHEET_NAME ? '🔎 Değerlendirmeniz Hazır!'
+      : name === SELL_SHEET_NAME ? '💰 Satış Fiyat Tahminiz Hazır!'
+      : '🚗 Öneriniz Hazır!';
+    const body = 'Uzmanımız yanıtınızı hazırladı. Görmek için uygulamayı açın.';
+    sendExpoPush_(token, title, body, type, clientId);
+    CacheService.getScriptCache().put('pushed_' + name + '_' + row, '1', 15);
+  }
+
+  ui.alert('Yanıt eklendi, durum HAZIR yapıldı ve bildirim gönderildi.');
+}
 
 function testAccess() {
   try {
@@ -157,10 +235,10 @@ function doPost(e) {
 
     // Gönderim uçları dakikada birkaç istekle sınırlı; durum sorguları daha
     // sık olabilir (uygulama odağa her dönüşte/bildirimde sorar).
-    if ((action === 'submit' || action === 'evalSubmit') && !checkActionRateLimit_(data.clientId, 'submit', 5)) {
+    if ((action === 'submit' || action === 'evalSubmit' || action === 'sellSubmit' || action === 'followUp') && !checkActionRateLimit_(data.clientId, 'submit', 5)) {
       return response({ success: false, error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' });
     }
-    if ((action === 'check' || action === 'checkEval' || action === 'history') && !checkActionRateLimit_(data.clientId, 'check', 30)) {
+    if ((action === 'check' || action === 'checkEval' || action === 'checkSell' || action === 'history') && !checkActionRateLimit_(data.clientId, 'check', 30)) {
       return response({ success: false, error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' });
     }
 
@@ -169,6 +247,12 @@ function doPost(e) {
     }
     if (action === 'evalSubmit') {
       return handleEvalSubmit(data);
+    }
+    if (action === 'sellSubmit') {
+      return handleSellSubmit(data);
+    }
+    if (action === 'followUp') {
+      return handleFollowUp(data);
     }
 
     if (action === 'markSeen') {
@@ -188,6 +272,9 @@ function doPost(e) {
     if (action === 'checkEval') {
       return handleSimpleCheck({ clientId: data.clientId }, EVAL_SHEET_NAME);
     }
+    if (action === 'checkSell') {
+      return handleSellCheck(data);
+    }
 
     // Kullanıcı "Yeni Öneri İste" dediğinde eski cevap yalnızca yerelde
     // gizleniyordu (dismissed), sunucudaki satır hep duruyor — geçmiş
@@ -203,7 +290,10 @@ function doPost(e) {
       return handleCancel(data, SHEET_NAME, findRowByClientId, 13);
     }
     if (action === 'cancelEval') {
-      return handleCancel(data, EVAL_SHEET_NAME, findLastEvalRow_, 6);
+      return handleCancel(data, EVAL_SHEET_NAME, findLastEvalRow_, 7);
+    }
+    if (action === 'cancelSell') {
+      return handleCancel(data, SELL_SHEET_NAME, findLastSellRow_, 22);
     }
 
     return response({ success: false, error: 'Geçersiz aksiyon.' });
@@ -256,7 +346,8 @@ function handleSubmit(data) {
       sanitizeCell_(data.description || 'Belirtilmedi'),
       now,
       'BEKLİYOR',
-      ''
+      '',
+      MAX_FOLLOWUPS
     ]);
 
     return response({ success: true, requestId });
@@ -292,10 +383,11 @@ function handleCheck(clientId) {
     createdAt: row.createdAt,
     name: row.name || null,
     brand: row.brand || null,
+    remaining: row.remaining === '' ? null : Number(row.remaining),
   });
 }
 
-// data.target 'evaluation' ise Değerlendirme sayfasındaki son satırı, yoksa
+// data.target 'evaluation' ise Alış Değerlendirme sayfasındaki son satırı, yoksa
 // (varsayılan) Araç Öneri sayfasındaki satırı GÖRÜLDÜ yapar. Eskiden yalnızca
 // öneri sayfası destekleniyordu; değerlendirmelerin "görüldü" diye bir durumu
 // hiç olmadığı için HAZIR sonrası yeni istek göndermek için handleEvalSubmit
@@ -303,10 +395,13 @@ function handleCheck(clientId) {
 // şekilde çalışıyor.
 function handleMarkSeen(data) {
   const isEval = data.target === 'evaluation';
-  const sheetName = isEval ? EVAL_SHEET_NAME : SHEET_NAME;
-  const statusCol = isEval ? 6 : 13;
+  const isSell = data.target === 'sell';
+  const sheetName = isSell ? SELL_SHEET_NAME : isEval ? EVAL_SHEET_NAME : SHEET_NAME;
+  const statusCol = isSell ? 22 : isEval ? 7 : 13;
   const sheet = getSS_().getSheetByName(sheetName);
-  const row = isEval ? findLastEvalRow_(sheet, data.clientId) : findRowByClientId(sheet, data.clientId);
+  const row = isSell ? findLastSellRow_(sheet, data.clientId)
+    : isEval ? findLastEvalRow_(sheet, data.clientId)
+    : findRowByClientId(sheet, data.clientId);
 
   if (row && row.status === 'HAZIR') {
     sheet.getRange(row.rowIndex, statusCol).setValue('GÖRÜLDÜ');
@@ -327,7 +422,7 @@ function findRowByClientId(sheet, clientId) {
   for (let i = ids.length - 1; i >= 0; i--) {
     if (String(ids[i][0]) === String(clientId)) {
       const rowIndex = i + 2;
-      const v = sheet.getRange(rowIndex, 1, 1, 14).getValues()[0];
+      const v = sheet.getRange(rowIndex, 1, 1, 15).getValues()[0];
       return {
         rowIndex: rowIndex,
         requestId: v[0],
@@ -344,6 +439,7 @@ function findRowByClientId(sheet, clientId) {
         createdAt: v[11],
         status: v[12],
         recommendation: v[13],
+        remaining: v[14],
       };
     }
   }
@@ -405,12 +501,13 @@ function handleEvalSubmit(data) {
     sheet.appendRow([
       requestId,
       sanitizeCell_(data.clientId),
+      sanitizeCell_(data.name || 'Belirtilmedi'),
       sanitizeCell_(data.ilanNo || 'Belirtilmedi'),
       sanitizeCell_(data.message),
       now,
       'BEKLİYOR',
       '',
-      sanitizeCell_(data.name || 'Belirtilmedi')
+      MAX_FOLLOWUPS
     ]);
     return response({ success: true, requestId });
   } finally {
@@ -428,16 +525,17 @@ function findLastEvalRow_(sheet, clientId) {
   const ids = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
   for (let i = ids.length - 1; i >= 0; i--) {
     if (String(ids[i][0]) === String(clientId)) {
-      const v = sheet.getRange(i + 2, 1, 1, 8).getValues()[0];
+      const v = sheet.getRange(i + 2, 1, 1, 9).getValues()[0];
       return {
         rowIndex: i + 2,
         requestId: v[0],
-        ilanNo: v[2],
-        message: v[3],
-        createdAt: v[4],
-        status: v[5],
-        answer: v[6],
-        name: v[7],
+        name: v[2],
+        ilanNo: v[3],
+        message: v[4],
+        createdAt: v[5],
+        status: v[6],
+        answer: v[7],
+        remaining: v[8],
       };
     }
   }
@@ -463,7 +561,178 @@ function handleSimpleCheck(data, sheetName) {
     requestId: row.requestId || null,
     createdAt: row.createdAt || null,
     name:      row.name || null,
+    remaining: row.remaining === '' ? null : Number(row.remaining),
   });
+}
+
+// "Satacağım Araç" (Satış Değerlendirme) akışı — kriterlere göre öneri/
+// alış değerlendirmesinden ayrı, tek seferlik bir fiyat tahmini isteği:
+// takip mesajı/Mesajlar YOK, yalnızca gönder → bekle → uzman tahmini
+// fiyatı yazar → kullanıcı görür.
+// "Satış Değerlendirme" sayfası ilk fiyat tahmini isteğinde otomatik oluşturulur
+// (Clients sayfasının getClientsSheet_() ile aynı desen) — kullanıcının
+// elle, doğru sütun sırasıyla bir sayfa açması gerekmez.
+function getSellSheet_() {
+  const ss = getSS_();
+  let sheet = ss.getSheetByName(SELL_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SELL_SHEET_NAME);
+    const headers = ['RequestID', 'ClientID', 'İsim', 'Marka', 'Model', 'Paket', 'Yıl', 'KM']
+      .concat(SELL_PANEL_COLUMNS)
+      .concat(['AğırHasarlı', 'Tarih', 'Durum', 'TahminiFiyat']);
+    sheet.appendRow(headers);
+  }
+  return sheet;
+}
+
+function handleSellSubmit(data) {
+  const sheet = getSellSheet_();
+  if (!data.clientId || !data.brand || !data.model || !data.year || !data.km) {
+    return response({ success: false, error: 'Zorunlu alanlar eksik.' });
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return response({ success: false, error: 'Sunucu meşgul, lütfen tekrar deneyin.' });
+  }
+  try {
+    const existing = findLastSellRow_(sheet, data.clientId);
+    if (existing && (existing.status === 'BEKLİYOR' || existing.status === 'HAZIR')) {
+      return response({ success: false, error: 'Zaten aktif bir fiyat tahmini isteğiniz var.' });
+    }
+
+    const requestId = Utilities.getUuid();
+    const now = new Date().toLocaleString('tr-TR');
+    const panels = data.panels || {};
+
+    const row = [
+      requestId,
+      sanitizeCell_(data.clientId),
+      sanitizeCell_(data.name || 'Belirtilmedi'),
+      sanitizeCell_(data.brand),
+      sanitizeCell_(data.model),
+      sanitizeCell_(data.package || 'Belirtilmedi'),
+      sanitizeCell_(data.year),
+      sanitizeCell_(data.km),
+    ];
+    SELL_PANEL_COLUMNS.forEach(function (key) {
+      row.push(sanitizeCell_(panels[key] || 'Orijinal'));
+    });
+    row.push(data.heavyDamage ? 'Evet' : 'Hayır');
+    row.push(now);
+    row.push('BEKLİYOR');
+    row.push('');
+
+    sheet.appendRow(row);
+    return response({ success: true, requestId: requestId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Bir kullanıcının SON satış-tahmini satırını (23 sütun) döndürür.
+function findLastSellRow_(sheet, clientId) {
+  if (!sheet) return null;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+
+  const ids = sheet.getRange(2, 2, lastRow - 1, 1).getValues();
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (String(ids[i][0]) === String(clientId)) {
+      const v = sheet.getRange(i + 2, 1, 1, 23).getValues()[0];
+      const panels = {};
+      SELL_PANEL_COLUMNS.forEach(function (key, idx) { panels[key] = v[8 + idx]; });
+      return {
+        rowIndex:    i + 2,
+        requestId:   v[0],
+        name:        v[2],
+        brand:       v[3],
+        model:       v[4],
+        package:     v[5],
+        year:        v[6],
+        km:          v[7],
+        panels:      panels,
+        heavyDamage: v[19],
+        createdAt:   v[20],
+        status:      v[21],
+        price:       v[22],
+      };
+    }
+  }
+  return null;
+}
+
+function handleSellCheck(data) {
+  const row = findLastSellRow_(getSS_().getSheetByName(SELL_SHEET_NAME), data.clientId);
+  if (!row) return response({ success: true, status: 'YOK' });
+
+  // handleCheck/handleSimpleCheck ile aynı koruma: HAZIR ama fiyat boşsa BEKLİYOR göster.
+  const rawStatus = row.status || 'BEKLİYOR';
+  const isHazirButEmpty = rawStatus === 'HAZIR' && !String(row.price || '').trim();
+  return response({
+    success:     true,
+    status:      isHazirButEmpty ? 'BEKLİYOR' : rawStatus,
+    price:       row.price || null,
+    requestId:   row.requestId || null,
+    name:        row.name || null,
+    brand:       row.brand || null,
+    model:       row.model || null,
+    package:     row.package || null,
+    year:        row.year || null,
+    km:          row.km || null,
+    panels:      row.panels,
+    heavyDamage: row.heavyDamage === 'Evet',
+    createdAt:   row.createdAt || null,
+  });
+}
+
+// Uzman ilk yanıtını verdikten sonra kullanıcının "Mesajlar" ekranından
+// doğrudan gönderebildiği takip mesajı — yeni bir istek/satır açmaz, MEVCUT
+// son satırın açıklama/mesaj hücresine eklenir ve durumu tekrar BEKLİYOR'a
+// çeker (uzman Sheets'te yeni mesajı fark edip normal HAZIR/cevap akışıyla
+// yanıtlar — cevabı eski yanıtın ÜZERİNE değil ALTINA yazması beklenir, bu
+// kısım elle yapılan bir alışkanlık, kodun zorlayabileceği bir şey değil).
+// Yalnızca uzman en az bir kez yanıtlamışsa (HAZIR/GÖRÜLDÜ) ve kalan mesaj
+// hakkı varsa (MAX_FOLLOWUPS'tan başlar, her gönderimde 1 azalır) çalışır.
+function handleFollowUp(data) {
+  const isEval = data.target === 'evaluation';
+  const sheetName = isEval ? EVAL_SHEET_NAME : SHEET_NAME;
+  const descCol = isEval ? 5 : 11;
+  const statusCol = isEval ? 7 : 13;
+  const remainingCol = isEval ? 9 : 15;
+  const findFn = isEval ? findLastEvalRow_ : findRowByClientId;
+
+  const message = sanitizeCell_(String(data.message || '').trim());
+  if (!message) return response({ success: false, error: 'Mesaj boş olamaz.' });
+
+  const sheet = getSS_().getSheetByName(sheetName);
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return response({ success: false, error: 'Sunucu meşgul, lütfen tekrar deneyin.' });
+  }
+  try {
+    const row = findFn(sheet, data.clientId);
+    if (!row) return response({ success: false, error: 'Kayıt bulunamadı.' });
+    if (row.status !== 'HAZIR' && row.status !== 'GÖRÜLDÜ') {
+      return response({ success: false, error: 'Henüz yanıtlanmamış bir isteğe takip mesajı gönderilemez.' });
+    }
+    const remaining = row.remaining === '' || row.remaining == null ? 0 : Number(row.remaining);
+    if (!remaining || remaining <= 0) {
+      return response({ success: false, error: 'Mesaj hakkınız kalmadı.' });
+    }
+
+    const existingText = String((isEval ? row.message : row.description) || '');
+    const stamp = new Date().toLocaleString('tr-TR');
+    const newText = existingText + '\n\n[Takip mesajı - ' + stamp + ']\n' + message;
+
+    sheet.getRange(row.rowIndex, descCol).setValue(newText);
+    sheet.getRange(row.rowIndex, statusCol).setValue('BEKLİYOR');
+    sheet.getRange(row.rowIndex, remainingCol).setValue(remaining - 1);
+
+    return response({ success: true, remaining: remaining - 1 });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // Bir clientId'ye ait EN FAZLA `limit` satırı, en yeniden en eskiye doğru
@@ -492,21 +761,30 @@ const HISTORY_LIMIT = 20;
 function handleHistory(data) {
   const isEval = data.target === 'evaluation';
   const sheetName = isEval ? EVAL_SHEET_NAME : SHEET_NAME;
-  const numCols = isEval ? 8 : 14;
+  const numCols = isEval ? 9 : 15;
   const sheet = getSS_().getSheetByName(sheetName);
   const rows = collectRowsByClientId_(sheet, data.clientId, numCols, HISTORY_LIMIT);
 
   const items = rows
     .map(v => isEval ? {
-      requestId: v[0], ilanNo: v[2] || null, message: v[3] || null,
-      createdAt: v[4], status: v[5], answer: v[6] || null, name: v[7] || null,
+      requestId: v[0], name: v[2] || null, ilanNo: v[3] || null, message: v[4] || null,
+      createdAt: v[5], status: v[6], answer: v[7] || null,
     } : {
       requestId: v[0], budget: v[4], yearMin: v[5], yearMax: v[6],
       caseType: v[7], fuel: v[8], gear: v[9], description: v[10],
       createdAt: v[11], status: v[12], recommendation: v[13] || null,
       name: v[2] || null, brand: v[3] || null,
     })
-    .filter(item => item.status === 'HAZIR' || item.status === 'GÖRÜLDÜ');
+    // BEKLİYOR olan bir satır normalde listelenmez (henüz yanıtlanmamış aktif
+    // istek, zaten check/checkEval ekranında görünür) — ANCAK daha önce en az
+    // bir kez yanıtlanmış (uzmanın cevabı dolu) bir satır, kullanıcı takip
+    // mesajı gönderdiği için BEKLİYOR'a dönmüş olabilir; bu durumda satırı
+    // geçmişten düşürürsek gönderilen mesaj sohbetten kaybolmuş gibi görünür.
+    .filter(item => {
+      if (item.status === 'HAZIR' || item.status === 'GÖRÜLDÜ') return true;
+      const answered = isEval ? item.answer : item.recommendation;
+      return item.status === 'BEKLİYOR' && !!answered;
+    });
 
   return response({ success: true, items: items });
 }
@@ -594,8 +872,12 @@ function onSheetEdit(e) {
       title = '🚗 Öneriniz Hazır!';
       body = 'Uzmanımız araç önerinizi hazırladı. Görmek için uygulamayı açın.';
     } else if (name === EVAL_SHEET_NAME) {
-      statusCol = 6; answerCol = 7; type = 'evaluation';
+      statusCol = 7; answerCol = 8; type = 'evaluation';
       title = '🔎 Değerlendirmeniz Hazır!';
+      body = 'Uzmanımız yanıtınızı hazırladı. Görmek için uygulamayı açın.';
+    } else if (name === SELL_SHEET_NAME) {
+      statusCol = 22; answerCol = 23; type = 'sell';
+      title = '💰 Satış Fiyat Tahminiz Hazır!';
       body = 'Uzmanımız yanıtınızı hazırladı. Görmek için uygulamayı açın.';
     } else {
       return;
@@ -625,6 +907,11 @@ function onSheetEdit(e) {
       if (currentStatus !== 'HAZIR') continue;
       const answer = String(sheet.getRange(row, answerCol).getValue() || '');
       if (!answer.trim()) continue;
+
+      // "Danışmanlık" menüsündeki addReplyToActiveRow bildirimi zaten kendi
+      // gönderdiyse (bkz. orada bırakılan pushed_ damgası), bu tetikleyici
+      // aynı düzenlemeyi ikinci kez görüp çift bildirim göndermesin.
+      if (CacheService.getScriptCache().get('pushed_' + name + '_' + row)) continue;
 
       const clientId = String(sheet.getRange(row, 2).getValue());
       const token = getPushTokenFor_(clientId);

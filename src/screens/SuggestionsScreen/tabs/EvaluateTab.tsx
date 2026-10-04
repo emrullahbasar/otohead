@@ -12,6 +12,7 @@ import { useSimpleRequest } from '../../../hooks/useSimpleRequest';
 import { useConversationHistory } from '../../../hooks/useConversationHistory';
 import { useConsultingEntitlement } from '../../../hooks/useConsultingEntitlement';
 import { useUnreadReply } from '../../../hooks/useUnreadReply';
+import { sendFollowUp } from '../../../services/suggestionApi';
 
 const t = tokens;
 
@@ -22,9 +23,10 @@ const PREMIUM_GATE_ENABLED = false;
 
 interface Props {
   evaluation: ReturnType<typeof useSimpleRequest>;
+  onBack: () => void;
 }
 
-export default function EvaluateTab({ evaluation }: Props) {
+export default function EvaluateTab({ evaluation, onBack }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const history = useConversationHistory('evaluation');
   const [showHistory, setShowHistory] = useState(false);
@@ -36,6 +38,12 @@ export default function EvaluateTab({ evaluation }: Props) {
     setShowHistory(true);
     history.load();
     markSeen();
+  };
+
+  const handleSendFollowUp = async (message: string) => {
+    await sendFollowUp(message, 'evaluation');
+    evaluation.forceCheck();
+    history.load(true);
   };
 
   useEffect(() => {
@@ -56,6 +64,11 @@ export default function EvaluateTab({ evaluation }: Props) {
     return <PremiumGate />;
   }
 
+  // Form (else dalı) uzun bir ScrollView olduğu için "Mesajlar" düğmesi orada
+  // sabit/floating değil, içerikle birlikte kayan (inline) bir düğme olarak
+  // gösterilir — aksi halde kaydırınca mesaj kutusunun üzerine biniyordu.
+  const isFormState = !hasAnswer && evaluation.result?.status !== 'BEKLİYOR' && !evaluation.submitted;
+
   let content: React.ReactNode;
 
   if (hasAnswer) {
@@ -74,6 +87,11 @@ export default function EvaluateTab({ evaluation }: Props) {
         <Pressable style={{ marginTop: t.spacing.lg, padding: t.spacing.sm }} onPress={evaluation.reset}>
           <Text style={{ ...t.typography.bodySm, color: t.color.brand.primary, textAlign: 'center', fontWeight: '600' }}>
             Yeni İstek Gönder
+          </Text>
+        </Pressable>
+        <Pressable style={{ marginTop: t.spacing.md, padding: t.spacing.sm }} onPress={onBack}>
+          <Text style={{ ...t.typography.bodySm, color: t.color.text.muted, textAlign: 'center' }}>
+            ‹ Değerlendirme Türünü Değiştir
           </Text>
         </Pressable>
       </View>
@@ -154,10 +172,16 @@ export default function EvaluateTab({ evaluation }: Props) {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 116 }}>
-          <Text style={styles.headerSub}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: t.spacing.base, paddingBottom: 0 }}>
+          <Pressable onPress={onBack} hitSlop={8}>
+            <Text style={{ ...t.typography.bodySm, color: t.color.brand.primary, fontWeight: '600' }}>‹ Geri</Text>
+          </Pressable>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm, padding: t.spacing.base, paddingBottom: 0 }}>
+          <Text style={[styles.headerSub, { flex: 1 }]}>
             Beğendiğiniz araç veya araçlar hakkında uzman görüşü alın.
           </Text>
+          <MessageHistoryButton inline onPress={openHistory} unread={unread} />
         </View>
         <SimpleRequestForm
           name={evaluation.name}
@@ -184,7 +208,7 @@ export default function EvaluateTab({ evaluation }: Props) {
   return (
     <View style={{ flex: 1 }}>
       {content}
-      <MessageHistoryButton onPress={openHistory} unread={unread} />
+      {!isFormState && <MessageHistoryButton onPress={openHistory} unread={unread} />}
       <ConversationModal
         visible={showHistory}
         onClose={() => setShowHistory(false)}
@@ -193,6 +217,9 @@ export default function EvaluateTab({ evaluation }: Props) {
         loading={history.loading}
         loaded={history.loaded}
         error={history.error}
+        canFollowUp={hasAnswer}
+        remaining={evaluation.result?.remaining ?? null}
+        onSend={handleSendFollowUp}
       />
     </View>
   );

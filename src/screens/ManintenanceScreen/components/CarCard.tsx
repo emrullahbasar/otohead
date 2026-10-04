@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Car } from '../../../types';
 import { styles } from '../styles';

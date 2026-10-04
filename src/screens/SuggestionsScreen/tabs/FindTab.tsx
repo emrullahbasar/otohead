@@ -10,6 +10,7 @@ import { ConversationModal } from '../components/ConversationModal';
 import { useSuggestion } from '../../../hooks/useSuggestion';
 import { useConversationHistory } from '../../../hooks/useConversationHistory';
 import { useUnreadReply } from '../../../hooks/useUnreadReply';
+import { sendFollowUp } from '../../../services/suggestionApi';
 
 const t = tokens;
 
@@ -30,11 +31,33 @@ export default function FindTab({ suggestion }: Props) {
     markSeen();
   };
 
+  // Uzman en az bir kez yanıtladıysa ve kalan hakkı varsa, Mesajlar ekranından
+  // yeni bir istek açmadan doğrudan takip mesajı gönderilebilir. Gönderim
+  // sonrası ana durumu (BEKLİYOR'a döndüğü için) tazeleriz — geçmiş listesini
+  // hemen yenilemiyoruz, çünkü BEKLİYOR olan satır handleHistory'de görünmez
+  // (yalnızca yanıtlanmış istekler listelenir); uzman yeniden yanıtlayınca
+  // bir sonraki açılışta tam sohbet (eski + yeni) zaten görünür.
+  const handleSendFollowUp = async (message: string) => {
+    await sendFollowUp(message, 'suggestion');
+    suggestion.forceCheck();
+    // Gönderilen mesajın sohbette hemen kendi balonuyla görünmesi için geçmiş
+    // zorla yeniden yüklenir — aksi halde eski (bir kereye mahsus) önbellek
+    // gösterilmeye devam eder ve mesaj sanki hiç gönderilmemiş gibi görünürdü.
+    history.load(true);
+  };
+
   // Doğrulama/gönderim hatası sayfanın üstünde gösterilir; kullanıcı aşağıdaki
   // düğmeye basmış olabilir, hatayı görsün diye yukarı kaydır.
   useEffect(() => {
     if (suggestion.error) scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [suggestion.error]);
+
+  // Form (else dalı) uzun bir ScrollView olduğu için "Mesajlar" düğmesi orada
+  // sabit/floating değil, içerikle birlikte kayan (inline) bir düğme olarak
+  // gösterilir — aksi halde kaydırınca "Kullanım amacı" kutusunun üzerine
+  // biniyordu. Diğer (cevap hazır/bekliyor/gönderildi) durumlar kaydırılmayan
+  // sabit ekranlar olduğu için orada normal sabit düğme kullanılır.
+  const isFormState = !hasAnswer && suggestion.suggestion?.status !== 'BEKLİYOR' && !suggestion.submitted;
 
   let content: React.ReactNode;
 
@@ -134,10 +157,11 @@ export default function FindTab({ suggestion }: Props) {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ padding: t.spacing.base, paddingBottom: 0, paddingRight: 116 }}>
-          <Text style={styles.headerSub}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: t.spacing.sm, padding: t.spacing.base, paddingBottom: 0 }}>
+          <Text style={[styles.headerSub, { flex: 1 }]}>
             Kriterlerinize uygun araç önerisi almak için aşağıdaki formu doldurun. Uzman ekibimiz en kısa sürede size geri dönüş yapacaktır.
           </Text>
+          <MessageHistoryButton inline onPress={openHistory} unread={unread} />
         </View>
         {suggestion.error !== '' && (
           <View style={[styles.errorBox, { margin: t.spacing.base }]}>
@@ -158,7 +182,7 @@ export default function FindTab({ suggestion }: Props) {
           yearMin={suggestion.yearMin}     setYearMin={suggestion.setYearMin}
           yearMax={suggestion.yearMax}     setYearMax={suggestion.setYearMax}
           brand={suggestion.brand}
-          caseType={suggestion.caseType}   setCaseType={suggestion.setCaseType}
+          caseType={suggestion.caseType}
           fuel={suggestion.fuel}
           gear={suggestion.gear}
           extra={suggestion.extra}         setExtra={suggestion.setExtra}
@@ -177,7 +201,7 @@ export default function FindTab({ suggestion }: Props) {
   return (
     <View style={{ flex: 1 }}>
       {content}
-      <MessageHistoryButton onPress={openHistory} unread={unread} />
+      {!isFormState && <MessageHistoryButton onPress={openHistory} unread={unread} />}
       <ConversationModal
         visible={showHistory}
         onClose={() => setShowHistory(false)}
@@ -186,6 +210,9 @@ export default function FindTab({ suggestion }: Props) {
         loading={history.loading}
         loaded={history.loaded}
         error={history.error}
+        canFollowUp={hasAnswer}
+        remaining={suggestion.suggestion?.remaining ?? null}
+        onSend={handleSendFollowUp}
       />
     </View>
   );

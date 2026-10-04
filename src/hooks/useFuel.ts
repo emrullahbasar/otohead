@@ -3,8 +3,8 @@ import { useCarSelector } from './useCarSelector';
 import { useFuelForm }    from './useFuelForm';
 import { useFuelRecords } from './useFuelRecords';
 
-export const useFuel = () => {
-  const carSelector = useCarSelector();
+export const useFuel = (initialCarId?: string, initialTs?: number) => {
+  const carSelector = useCarSelector(initialCarId, initialTs);
   const fuelForm    = useFuelForm();
   const fuelRecords = useFuelRecords(
     carSelector.selectedCarId,
@@ -25,10 +25,7 @@ export const useFuel = () => {
 
   const handleCalculateAndSave = async () => {
     // Eksik/hatalı girişte form silinmesin; yalnızca kayıt başarılıysa sıfırla.
-    const saved = await fuelRecords.handleCalculateAndSave(
-      fuelForm.record,
-      fuelForm.record.currentKm,
-    );
+    const saved = await fuelRecords.handleCalculateAndSave(fuelForm.record);
     if (saved) fuelForm.resetForm(fuelForm.record.currentKm);
   };
 

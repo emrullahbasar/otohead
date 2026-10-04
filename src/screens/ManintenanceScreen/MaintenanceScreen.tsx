@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Alert } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useMaintenance } from '../../hooks/useMaintenance';
 import { useMaintenanceReminders } from '../../hooks/useMaintenanceReminders';
 import { MaintenanceRecord } from '../../types';
+import { MainTabParamList } from '../../navigation/types';
 import { confirmKmJump } from '../../utils/kmGuard';
 import { CarListView } from './CarListView';
 import { CarDetailsView } from './CarDetailsView';
 import { SelectionModal } from './components/SelectionModal';
 import { RecordDetailModal } from './components/RecordDetailModal';
 
+type MaintenanceRouteProp = RouteProp<MainTabParamList, 'Araç Yönetimi'>;
+
 export default function MaintenanceScreen() {
+  const route = useRoute<MaintenanceRouteProp>();
   const maintenance = useMaintenance();
   const reminders   = useMaintenanceReminders();
 
   const {
-    selectedCar,
+    cars, selectedCar, setSelectedCar,
     handleUpdateRecord,
     brands, models, loading,
     setBrand, setModel, setYear,
@@ -24,6 +29,20 @@ export default function MaintenanceScreen() {
     setRecordNextKm, setRecordNextDate,
     ...restMaintenance
   } = maintenance;
+
+  // Ana Sayfa'daki "yaklaşan bakım" uyarısından belirli bir carId+ts ile
+  // gelindiyse, araç listesi yüklenince o aracı otomatik aç — bkz.
+  // useCarSelector.ts'teki aynı tek-seferlik (ts bazlı) desen.
+  const consumedTsRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const { carId, ts } = route.params || {};
+    if (carId === undefined || ts === undefined || consumedTsRef.current === ts) return;
+    const car = cars.find(c => c.id === carId);
+    if (car) {
+      consumedTsRef.current = ts;
+      setSelectedCar(car);
+    }
+  }, [route.params, cars]);
 
   const [detailRecord,   setDetailRecord]   = useState<MaintenanceRecord | null>(null);
   const [isEditing,      setIsEditing]      = useState(false);
@@ -118,6 +137,7 @@ export default function MaintenanceScreen() {
       {selectedCar ? (
         <CarDetailsView
           {...restMaintenance}
+          setSelectedCar={setSelectedCar}
           recordType={recordType}
           recordDate={recordDate}
           recordKm={recordKm}

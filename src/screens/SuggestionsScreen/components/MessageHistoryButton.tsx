@@ -7,14 +7,19 @@ const t = tokens;
 interface Props {
   onPress: () => void;
   unread?: boolean;
+  // Form uzun bir ScrollView olduğunda sabit (absolute) buton, kaydırınca
+  // altındaki alanların (ör. "Kullanım amacı" kutusu) üzerine biniyordu.
+  // inline=true verildiğinde normal akışta (kaydırılınca içerikle birlikte
+  // kayan) bir düğme olarak render edilir — sabit/floating hiç kullanılmaz.
+  inline?: boolean;
 }
 
-// Instagram/Messenger'daki gibi ekranın sağ üstünde sabit duran, geçmiş
-// konuşmaya götüren bir "mesajlar" düğmesi. Uzmandan henüz görülmemiş bir
-// yanıt varsa köşesinde kırmızı bir nokta belirir, kutu açılınca söner.
-export function MessageHistoryButton({ onPress, unread }: Props) {
+// Instagram/Messenger'daki gibi sağ üstte duran, geçmiş konuşmaya götüren bir
+// "mesajlar" düğmesi. Uzmandan henüz görülmemiş bir yanıt varsa köşesinde
+// kırmızı bir nokta belirir, kutu açılınca söner.
+export function MessageHistoryButton({ onPress, unread, inline }: Props) {
   return (
-    <Pressable style={s.button} onPress={onPress} hitSlop={8}>
+    <Pressable style={inline ? s.buttonInline : s.button} onPress={onPress} hitSlop={8}>
       {unread && <View style={s.badge} />}
       <Text style={s.icon}>💬</Text>
       <Text style={s.label} numberOfLines={1}>Mesajlar</Text>
@@ -41,6 +46,16 @@ const s = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+  },
+  buttonInline: {
+    width: 104,
+    paddingVertical: t.spacing.sm,
+    borderRadius: 18,
+    backgroundColor: t.color.bg.surface,
+    borderWidth: 1,
+    borderColor: t.color.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     position: 'absolute',

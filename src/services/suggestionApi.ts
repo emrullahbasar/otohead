@@ -30,6 +30,7 @@ export interface SuggestionResult {
   fuel:           string | null;
   caseType:       string[] | string | null;
   createdAt:      string | null;
+  remaining:      number | null;
 }
 
 export interface SimpleResult {
@@ -40,6 +41,7 @@ export interface SimpleResult {
   message:   string | null;
   requestId: string | null;
   createdAt: string | null;
+  remaining: number | null;
 }
 
 export interface SubmitRequest {
@@ -62,6 +64,46 @@ export interface SimpleRequest {
   message:  string;
 }
 
+// "Satacağım Araç" akışındaki 11 kaporta parçası — önden arkaya doğru,
+// apps-script/Code.gs#SELL_PANEL_COLUMNS ile aynı sıra/anahtarlar (Sheets
+// sütunları bu sırayla yazılır/okunur, sıra değişirse ikisi birlikte güncellenmeli).
+export const SELL_PANEL_KEYS = [
+  'Kaput', 'SolÖnÇamurluk', 'SağÖnÇamurluk', 'SolÖnKapı', 'SağÖnKapı',
+  'Tavan', 'SolArkaKapı', 'SağArkaKapı', 'SolArkaÇamurluk', 'SağArkaÇamurluk',
+  'Bagaj',
+] as const;
+
+export type SellPanelKey    = typeof SELL_PANEL_KEYS[number];
+export type SellPanelStatus = 'Orijinal' | 'Değişen' | 'Boyalı';
+export type SellPanels      = Record<SellPanelKey, SellPanelStatus>;
+
+export interface SellEstimateRequest {
+  clientId:    string;
+  name:        string;
+  brand:       string;
+  model:       string;
+  package:     string;
+  year:        string;
+  km:          string;
+  panels:      SellPanels;
+  heavyDamage: boolean;
+}
+
+export interface SellEstimateResult {
+  status:      SuggestionStatus;
+  price:       string | null;
+  requestId:   string | null;
+  name:        string | null;
+  brand:       string | null;
+  model:       string | null;
+  package:     string | null;
+  year:        string | null;
+  km:          string | null;
+  panels:      Partial<SellPanels> | null;
+  heavyDamage: boolean;
+  createdAt:   string | null;
+}
+
 export interface SuggestionHistoryItem {
   requestId:      string;
   name:           string | null;
@@ -71,8 +113,10 @@ export interface SuggestionHistoryItem {
   brand:          string | null;
   fuel:           string;
   caseType:       string[] | string;
+  description:    string | null;
   createdAt:      string;
   recommendation: string | null;
+  status:         SuggestionStatus;
 }
 
 export interface EvaluationHistoryItem {
@@ -82,6 +126,7 @@ export interface EvaluationHistoryItem {
   message:   string | null;
   createdAt: string;
   answer:    string | null;
+  status:    SuggestionStatus;
 }
 
 const AUTH_ERROR = 'Yetkisiz istek.';
@@ -275,6 +320,25 @@ export async function submitEvaluation(data: SimpleRequest): Promise<void> {
   }
 }
 
+export async function submitSellEstimate(data: SellEstimateRequest): Promise<void> {
+  try {
+    await withAuthRetry(async ({ clientId, secret }) => {
+      const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'sellSubmit', ...data, clientId, secret }),
+      });
+      if (!response.ok) throw new Error('İstek gönderilemedi.');
+      const result = await readJson(response);
+      if (!result.success) throw new Error(result.error || 'Bir hata oluştu.');
+    });
+  } catch (err) {
+    if (await landedDespiteError(err, () => checkSellEstimate(data.clientId))) return;
+    throw err;
+  }
+}
+
 // Durum sorguları POST ile gider (secret gövdede) — eskiden GET sorgu dizesinde
 // (?...&secret=...) gidiyordu, bu URL erişim günlüklerinde görünebilirdi.
 // Sunucu tarafı da (apps-script/Code.gs) buna göre güncellendi; ikisi birlikte
@@ -310,7 +374,22 @@ export async function checkSuggestion(_clientId: string): Promise<SuggestionResu
   }));
 }
 
-export async function markAsSeen(_clientId: string, target: 'suggestion' | 'evaluation' = 'suggestion'): Promise<void> {
+export async function checkSellEstimate(_clientId: string): Promise<SellEstimateResult> {
+  return withAuthRetry(({ clientId, secret }) => retryOnTransient(async () => {
+    const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'checkSell', clientId, secret }),
+    });
+    if (!response.ok) throw new Error('Durum kontrol edilemedi.');
+    const result = await readJson(response);
+    if (!result.success) throw new Error(result.error || 'Bir hata oluştu.');
+    return result as SellEstimateResult;
+  }));
+}
+
+export async function markAsSeen(_clientId: string, target: 'suggestion' | 'evaluation' | 'sell' = 'suggestion'): Promise<void> {
   await withAuthRetry(async ({ clientId, secret }) => {
     await fetchWithTimeout(APPS_SCRIPT_URL, {
       method: 'POST',
@@ -324,7 +403,7 @@ export async function markAsSeen(_clientId: string, target: 'suggestion' | 'eval
 // yanıtlamazsa kullanıcı yeni istek gönderemiyordu ("Zaten aktif bir isteğiniz
 // var"), bu tek çıkış yoluydu. Uzman zaten yanıtladıysa (HAZIR/GÖRÜLDÜ) sunucu
 // isteği reddeder; o durumda kullanıcı cevabı görüp normal akışla devam eder.
-async function cancelRequest(action: 'cancel' | 'cancelEval'): Promise<void> {
+async function cancelRequest(action: 'cancel' | 'cancelEval' | 'cancelSell'): Promise<void> {
   await withAuthRetry(async ({ clientId, secret }) => {
     const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
       method: 'POST',
@@ -340,6 +419,39 @@ async function cancelRequest(action: 'cancel' | 'cancelEval'): Promise<void> {
 
 export const cancelSuggestion = (): Promise<void> => cancelRequest('cancel');
 export const cancelEvaluation = (): Promise<void> => cancelRequest('cancelEval');
+export const cancelSellEstimate = (): Promise<void> => cancelRequest('cancelSell');
+
+// Mesajlar ekranından, uzman ilk yanıtını verdikten sonra gönderilebilen takip
+// mesajı — yeni bir istek açmaz, mevcut son satırın açıklama/mesaj hücresine
+// eklenir ve durum tekrar BEKLİYOR'a döner. Sunucu kalan hakkı (MAX_FOLLOWUPS'tan
+// başlar) döndürür; -1 döndüğünde gerçek sayı bilinmiyor demektir (zaman aşımı
+// ama istek muhtemelen ulaşmış) — çağıran taraf checkStatus/forceCheck ile
+// gerçek durumu tazelemeli.
+export const FOLLOWUP_MAX_LENGTH = 500;
+
+export async function sendFollowUp(
+  message: string,
+  target: 'suggestion' | 'evaluation' = 'suggestion',
+): Promise<number> {
+  try {
+    return await withAuthRetry(async ({ clientId, secret }) => {
+      const response = await fetchWithTimeout(APPS_SCRIPT_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'followUp', clientId, secret, target, message }),
+      });
+      if (!response.ok) throw new Error('Mesaj gönderilemedi.');
+      const result = await readJson(response);
+      if (!result.success) throw new Error(result.error || 'Mesaj gönderilemedi.');
+      return typeof result.remaining === 'number' ? result.remaining : 0;
+    });
+  } catch (err) {
+    const check = target === 'evaluation' ? checkEvaluation : checkSuggestion;
+    if (await landedDespiteError(err, () => check(''))) return -1;
+    throw err;
+  }
+}
 
 // "Yeni Öneri İste"/"Yeni İstek Gönder" sonrası eski cevap yalnızca yerelde
 // gizlenir (bkz. useSuggestionStatus/useSimpleRequest), sunucudaki kayıt hep

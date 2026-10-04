@@ -13,37 +13,133 @@ export const styles = StyleSheet.create({
   },
 
   // ── Stats ──
+  // Tek kart, ortada ince bir ayraçla bölünmüş. Emoji/daire ikon yok —
+  // ScreenHeader'daki vurgu çizgisi motifi (küçük dolgun lacivert çubuk)
+  // burada da tekrar kullanılıyor, uygulamanın kendi kimliğiyle tutarlı.
   statsRow: {
     flexDirection: 'row',
-    gap: t.spacing.md,
-    paddingHorizontal: t.spacing.base,
-    paddingVertical: t.spacing.lg,
+    backgroundColor: t.color.bg.surface,
+    borderRadius: t.radius.lg,
+    borderWidth: 1,
+    borderColor: t.color.border.default,
+    marginHorizontal: t.spacing.base,
+    marginVertical: t.spacing.lg,
   },
   statCard: {
     flex: 1,
-    backgroundColor: t.color.bg.surface,
-    borderRadius: t.radius.lg,
-    padding: t.spacing.lg,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: t.color.border.default,
+    justifyContent: 'center',
+    paddingVertical: t.spacing.lg,
   },
   statCardPressed: {
     backgroundColor: t.color.bg.muted,
   },
-  statIcon: {
-    fontSize: 20,
-    marginBottom: t.spacing.sm,
+  statDivider: {
+    width: 1,
+    marginVertical: t.spacing.md,
+    backgroundColor: t.color.border.divider,
   },
   statNumber: {
-    ...t.typography.h1,
+    ...t.typography.display,
     color: t.color.brand.primary,
-    marginBottom: 2,
   },
   statLabel: {
-    ...t.typography.caption,
+    ...t.typography.overline,
     color: t.color.text.muted,
     textAlign: 'center',
+    marginTop: 4,
+  },
+
+  // ── Yakıt Kaydı bölmesi (sağ yarı) ──
+  // "Araçlarınız" (sol) sabit tek bir Pressable iken sağ yarı, araç sayısına
+  // göre şekil değiştirir: 0 araç → boş durum, 1 araç → tek büyük hücre
+  // (araç adı başlık olarak üstte), 2-4 araç → küçük bir ızgara. statCard'daki
+  // dolgu/hizalama burada (fuelFill/fuelGrid) tekrarlanır çünkü dış sarmalayıcı
+  // (statCardRight) artık kendisi Pressable değil, içi duruma göre değişen
+  // düz bir View.
+  statCardRight: {
+    flex: 1,
+  },
+  fuelFill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: t.spacing.lg,
+  },
+  fuelCarNameSingle: {
+    ...t.typography.overline,
+    color: t.color.text.muted,
+    marginBottom: 2,
+  },
+  fuelGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    paddingVertical: t.spacing.sm,
+    paddingHorizontal: t.spacing.xs,
+  },
+  fuelGridCell: {
+    width: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: t.spacing.sm,
+  },
+  fuelGridCarName: {
+    ...t.typography.caption,
+    fontSize: 10,
+    color: t.color.text.muted,
+    marginBottom: 2,
+  },
+  fuelGridCount: {
+    ...t.typography.h2,
+    color: t.color.brand.primary,
+  },
+
+  // ── Hoş geldin / Yaklaşan bakım ──
+  // İkisi de statsRow ile HİZMETLER arasında, aynı dar aralıkla dizilir — hiç
+  // araç yoksa yalnızca welcomeBanner görünür, diğeri kendi koşuluna bağlı
+  // (maintenanceAlert varsa) ayrı belirir.
+  welcomeBanner: {
+    marginHorizontal: t.spacing.base,
+    marginBottom: t.spacing.lg,
+    padding: t.spacing.base,
+    backgroundColor: t.color.brand.pale,
+    borderRadius: t.radius.lg,
+    borderWidth: 1,
+    borderColor: t.color.brand.primary,
+  },
+  welcomeTitle: {
+    ...t.typography.h3,
+    color: t.color.text.primary,
+    marginBottom: 4,
+  },
+  welcomeText: {
+    ...t.typography.bodySm,
+    color: t.color.text.secondary,
+    lineHeight: 20,
+  },
+  alertBanner: {
+    marginHorizontal: t.spacing.base,
+    marginBottom: t.spacing.lg,
+    padding: t.spacing.base,
+    backgroundColor: t.color.warning.bg,
+    borderRadius: t.radius.lg,
+    borderWidth: 1,
+    borderColor: t.color.warning.border,
+  },
+  alertTitle: {
+    ...t.typography.h3,
+    color: t.color.warning.default,
+    marginBottom: 4,
+  },
+  alertText: {
+    ...t.typography.bodySm,
+    color: t.color.text.secondary,
+    lineHeight: 20,
+  },
+  bannerPressed: {
+    opacity: 0.85,
   },
 
   // ── Section Header ──
@@ -125,23 +221,16 @@ export const styles = StyleSheet.create({
 });
 
 export const sk = StyleSheet.create({
-  circle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: t.color.bg.muted,
-    marginBottom: t.spacing.sm,
-  },
-  lineWide: {
-    width: 40,
-    height: 20,
+  numberBlock: {
+    width: 44,
+    height: 30,
     borderRadius: t.radius.sm,
     backgroundColor: t.color.bg.muted,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  lineNarrow: {
-    width: 52,
-    height: 12,
+  labelBlock: {
+    width: 64,
+    height: 11,
     borderRadius: t.radius.sm,
     backgroundColor: t.color.bg.muted,
   },

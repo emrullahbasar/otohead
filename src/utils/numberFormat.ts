@@ -35,11 +35,6 @@ export const parseAmountInput = (value: string): string => {
   return decPart ? `${intPart}.${decPart}` : intPart ? `${intPart}.` : '';
 };
 
-export const amountToNumber = (value: string): number => {
-  const n = parseFloat(value);
-  return isNaN(n) ? 0 : n;
-};
-
 export const formatAmountDisplay = (value: string | number): string => {
   const str = typeof value === 'number' ? String(value) : value;
   if (!str) return '';

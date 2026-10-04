@@ -6,9 +6,10 @@ import { useRoute, useNavigation, useFocusEffect, RouteProp } from '@react-navig
 import { MainTabParamList } from '../../navigation/types';
 import { useSuggestion, FUEL_TYPES, GEAR_TYPES } from '../../hooks/useSuggestion';
 import { useSimpleRequest } from '../../hooks/useSimpleRequest';
+import { useSellEstimate } from '../../hooks/useSellEstimate';
 import { SelectionModal } from './components/SelectionModal';
 import FindTab from './tabs/FindTab';
-import EvaluateTab from './tabs/EvaluateTab';
+import EvaluateChooser from './tabs/EvaluateChooser';
 import { styles } from './styles';
 import { tokens } from '../../config/tokens';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -26,6 +27,7 @@ export default function SuggestionsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('find');
   const suggestion = useSuggestion();
   const evaluation = useSimpleRequest();
+  const sell       = useSellEstimate();
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -34,24 +36,39 @@ export default function SuggestionsScreen() {
     }
   }, [activeTab, suggestion.clientId]);
 
-  // Değerlendirme sekmesi ilk açıldığında bir kez sorgulanır.
+  // Değerlendirme sekmesi ilk açıldığında bir kez sorgulanır — hem Alacağım
+  // Araç (evaluation) hem Satacağım Araç (sell) için, EvaluateChooser hangi
+  // alt akışı göstereceğine bu ikisinin sonucuna bakarak kendi karar verir.
   useEffect(() => {
     if (activeTab === 'evaluate' && evaluation.clientId) evaluation.checkOnMount();
   }, [activeTab, evaluation.clientId]);
+  useEffect(() => {
+    if (activeTab === 'evaluate' && sell.clientId) sell.checkOnMount();
+  }, [activeTab, sell.clientId]);
 
   // Cevap beklerken sekmeye dönünce veya uygulama ön plana gelince bekleyen
   // istekleri otomatik tazele (her render'da yeniden tetiklenmesin diye ref).
-  const pendingRef = useRef({ suggestion: false, evaluation: false });
+  const pendingRef = useRef({ suggestion: false, evaluation: false, sell: false });
   pendingRef.current = {
     suggestion: suggestion.suggestion?.status === 'BEKLİYOR',
     evaluation: evaluation.result?.status === 'BEKLİYOR',
+    sell:       sell.result?.status === 'BEKLİYOR',
   };
-  const actionsRef = useRef({ checkSuggestion: suggestion.checkStatus, checkEvaluation: evaluation.checkStatus });
-  actionsRef.current = { checkSuggestion: suggestion.checkStatus, checkEvaluation: evaluation.checkStatus };
+  const actionsRef = useRef({
+    checkSuggestion: suggestion.checkStatus,
+    checkEvaluation: evaluation.checkStatus,
+    checkSell:       sell.checkStatus,
+  });
+  actionsRef.current = {
+    checkSuggestion: suggestion.checkStatus,
+    checkEvaluation: evaluation.checkStatus,
+    checkSell:       sell.checkStatus,
+  };
 
   const refreshPending = useCallback(() => {
     if (pendingRef.current.suggestion) actionsRef.current.checkSuggestion();
     if (pendingRef.current.evaluation) actionsRef.current.checkEvaluation();
+    if (pendingRef.current.sell)       actionsRef.current.checkSell();
   }, []);
 
   useFocusEffect(refreshPending);
@@ -71,6 +88,9 @@ export default function SuggestionsScreen() {
     if (targetTab === 'evaluate') {
       setActiveTab('evaluate');
       evaluation.forceCheck();
+    } else if (targetTab === 'sell') {
+      setActiveTab('evaluate');
+      sell.forceCheck();
     } else {
       setActiveTab('find');
       suggestion.forceCheck();
@@ -106,8 +126,8 @@ export default function SuggestionsScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-        {activeTab === 'find'     && <FindTab     suggestion={suggestion} />}
-        {activeTab === 'evaluate' && <EvaluateTab evaluation={evaluation} />}
+        {activeTab === 'find'     && <FindTab suggestion={suggestion} />}
+        {activeTab === 'evaluate' && <EvaluateChooser evaluation={evaluation} sell={sell} />}
       </View>
 
       <SelectionModal

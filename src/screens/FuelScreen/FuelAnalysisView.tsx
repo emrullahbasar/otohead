@@ -32,7 +32,7 @@ export default function FuelAnalysisView({ analysis, pendingAnalysis, historyLen
           </View>
         </View>
         <Text style={styles.analysisCost}>
-          Toplam Harcama: {analysis.totalCost.toFixed(2)} ₺
+          Son Harcama: {analysis.totalCost.toFixed(2)} ₺
         </Text>
       </View>
     );

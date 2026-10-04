@@ -13,7 +13,6 @@ interface Props {
   yearMax:     string; setYearMax:  (val: string) => void;
   brand:       string[];
   caseType:    string[];
-  setCaseType: (val: string[]) => void;
   fuel:        string[];
   gear:        string[];
   extra:       string; setExtra:    (val: string) => void;
@@ -42,7 +41,7 @@ export const SuggestionForm = ({
   yearMin, setYearMin,
   yearMax, setYearMax,
   brand,
-  caseType, setCaseType,
+  caseType,
   fuel, gear,
   extra, setExtra,
   touched,

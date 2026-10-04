@@ -18,10 +18,10 @@ export default function NotificationRouter() {
     handledId.current = id;
 
     const type = response.notification.request.content.data?.type;
-    if (type !== 'suggestion' && type !== 'evaluation') return;
+    if (type !== 'suggestion' && type !== 'evaluation' && type !== 'sell') return;
 
     navigationRef.navigate('Araç Öneri', {
-      tab: type === 'evaluation' ? 'evaluate' : 'find',
+      tab: type === 'evaluation' ? 'evaluate' : type === 'sell' ? 'sell' : 'find',
       ts: Date.now(),
     });
   }, [response]);

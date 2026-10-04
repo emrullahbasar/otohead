@@ -68,6 +68,23 @@ export const addFuelRecord = async (
   }
 };
 
+// Ana Sayfa'daki yakıt kaydı dökümü için — her aracın kaç yakıt kaydı
+// olduğunu tek sorguda döndürür (araç başına ayrı ayrı getFuelRecords
+// çağırıp saymaktan kaçınmak için).
+export const getFuelRecordCounts = async (): Promise<Record<string, number>> => {
+  try {
+    const db = await getDB();
+    const rows = await db.getAllAsync<{ carId: string; cnt: number }>(
+      `SELECT carId, COUNT(*) as cnt FROM fuel_records GROUP BY carId`
+    );
+    const counts: Record<string, number> = {};
+    rows.forEach(r => { counts[r.carId] = r.cnt; });
+    return counts;
+  } catch {
+    throw new DatabaseError('Yakıt kayıtları okunamadı.');
+  }
+};
+
 export const deleteFuelRecord = async (id: string): Promise<void> => {
   try {
     const db = await getDB();

@@ -5,22 +5,18 @@ import {
   Image,
   ScrollView,
   Pressable,
-  StyleSheet,
-  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHomeStats } from "../../hooks/useHomeStats";
+import { useMaintenanceAlert } from "../../hooks/useMaintenanceAlert";
 import { MainTabParamList } from "../../navigation/types";
-import { tokens } from "../../config/tokens";
 import { styles, sk } from "./styles";
 import PrivacyModal from "./PrivacyModal";
 import { ScreenHeader } from "../../components/ScreenHeader";
 
 type NavigationProp = BottomTabNavigationProp<MainTabParamList>;
-
-const t = tokens;
 
 const MENU_ITEMS: {
   tab: keyof MainTabParamList;
@@ -51,9 +47,8 @@ const MENU_ITEMS: {
 function SkeletonCard() {
   return (
     <View style={styles.statCard}>
-      <View style={sk.circle} />
-      <View style={sk.lineWide} />
-      <View style={sk.lineNarrow} />
+      <View style={sk.numberBlock} />
+      <View style={sk.labelBlock} />
     </View>
   );
 }
@@ -61,7 +56,8 @@ function SkeletonCard() {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
-  const { carCount, recordCount, loading } = useHomeStats();
+  const { carCount, fuelCars, loading } = useHomeStats();
+  const maintenanceAlert = useMaintenanceAlert();
   const [showPrivacy, setShowPrivacy] = useState(false);
 
   return (
@@ -81,6 +77,7 @@ export default function HomeScreen() {
         {loading ? (
           <>
             <SkeletonCard />
+            <View style={styles.statDivider} />
             <SkeletonCard />
           </>
         ) : (
@@ -92,25 +89,108 @@ export default function HomeScreen() {
               ]}
               onPress={() => navigation.navigate("Araç Yönetimi")}
             >
-              <Text style={styles.statIcon}>🚗</Text>
               <Text style={styles.statNumber}>{carCount}</Text>
-              <Text style={styles.statLabel}>Araçlarınız</Text>
+              <Text style={styles.statLabel} allowFontScaling={false} numberOfLines={1}>
+                ARAÇLARINIZ
+              </Text>
             </Pressable>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.statCard,
-                pressed && styles.statCardPressed,
-              ]}
-              onPress={() => navigation.navigate("Araç Yönetimi")}
-            >
-              <Text style={styles.statIcon}>🔧</Text>
-              <Text style={styles.statNumber}>{recordCount}</Text>
-              <Text style={styles.statLabel}>Bakım Kaydı</Text>
-            </Pressable>
+            <View style={styles.statDivider} />
+
+            <View style={styles.statCardRight}>
+              {fuelCars.length === 0 && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.fuelFill,
+                    pressed && styles.statCardPressed,
+                  ]}
+                  onPress={() => navigation.navigate("Araç Yönetimi")}
+                >
+                  <Text style={styles.statNumber}>0</Text>
+                  <Text style={styles.statLabel} allowFontScaling={false} numberOfLines={1}>
+                    YAKIT KAYDI
+                  </Text>
+                </Pressable>
+              )}
+
+              {fuelCars.length === 1 && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.fuelFill,
+                    pressed && styles.statCardPressed,
+                  ]}
+                  onPress={() => navigation.navigate("Yakıt", { carId: fuelCars[0].id, ts: Date.now() })}
+                >
+                  <Text style={styles.fuelCarNameSingle} allowFontScaling={false} numberOfLines={1}>
+                    {fuelCars[0].name}
+                  </Text>
+                  <Text style={styles.statNumber}>{fuelCars[0].count}</Text>
+                  <Text style={styles.statLabel} allowFontScaling={false} numberOfLines={1}>
+                    YAKIT KAYDI
+                  </Text>
+                </Pressable>
+              )}
+
+              {fuelCars.length > 1 && (
+                <View style={styles.fuelGrid}>
+                  {fuelCars.map(car => (
+                    <Pressable
+                      key={car.id}
+                      style={({ pressed }) => [
+                        styles.fuelGridCell,
+                        pressed && styles.statCardPressed,
+                      ]}
+                      onPress={() => navigation.navigate("Yakıt", { carId: car.id, ts: Date.now() })}
+                    >
+                      <Text style={styles.fuelGridCarName} allowFontScaling={false} numberOfLines={1}>
+                        {car.name}
+                      </Text>
+                      <Text style={styles.fuelGridCount} allowFontScaling={false}>
+                        {car.count}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
           </>
         )}
       </View>
+
+      {/* ── Hoş geldin (hiç araç yoksa) ── */}
+      {!loading && carCount === 0 && (
+        <Pressable
+          style={({ pressed }) => [styles.welcomeBanner, pressed && styles.bannerPressed]}
+          onPress={() => navigation.navigate("Araç Yönetimi")}
+        >
+          <Text style={styles.welcomeTitle}>👋 Hoş geldiniz!</Text>
+          <Text style={styles.welcomeText}>
+            Başlamak için ilk aracınızı ekleyin — bakım ve yakıt takibi hemen aktif olsun.
+          </Text>
+        </Pressable>
+      )}
+
+      {/* ── Yaklaşan bakım uyarısı ── */}
+      {maintenanceAlert && (
+        <Pressable
+          style={({ pressed }) => [styles.alertBanner, pressed && styles.bannerPressed]}
+          onPress={() => navigation.navigate("Araç Yönetimi", { carId: maintenanceAlert.carId, ts: Date.now() })}
+        >
+          <Text style={styles.alertTitle}>🔧 Yaklaşan Bakım</Text>
+          <Text style={styles.alertText}>
+            {maintenanceAlert.carName} — {maintenanceAlert.type}:{' '}
+            {maintenanceAlert.kind === 'km' ? (
+              (maintenanceAlert.remainingKm ?? 0) <= 0
+                ? `hedef kilometre geçildi (${Math.abs(maintenanceAlert.remainingKm ?? 0).toLocaleString('tr-TR')} km önce)`
+                : `${(maintenanceAlert.remainingKm ?? 0).toLocaleString('tr-TR')} km kaldı`
+            ) : (
+              (maintenanceAlert.remainingDays ?? 0) <= 0
+                ? `tarihi geçti (${Math.abs(maintenanceAlert.remainingDays ?? 0)} gün önce)`
+                : `${maintenanceAlert.remainingDays} gün kaldı`
+            )}
+          </Text>
+        </Pressable>
+      )}
 
       {/* ── DIVIDER ── */}
       <View style={styles.sectionHeader}>

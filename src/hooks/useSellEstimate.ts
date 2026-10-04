@@ -1,57 +1,86 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getClientId, getConfig, setConfig } from '../services/database';
+import { fetchBrands, fetchModels } from '../services/carApi';
 import {
-  submitEvaluation,
+  submitSellEstimate,
   syncPushToken,
-  checkEvaluation,
+  checkSellEstimate,
   markAsSeen,
-  cancelEvaluation,
-  SimpleResult,
-  SimpleRequest,
+  cancelSellEstimate,
+  SellEstimateResult,
+  SellEstimateRequest,
+  SellPanels,
+  SellPanelKey,
+  SellPanelStatus,
+  SELL_PANEL_KEYS,
 } from '../services/suggestionApi';
 
-const CACHE_KEY = 'lastEvaluation';
-const DISMISSED_KEY = 'dismissedEvaluation';
+const CACHE_KEY = 'lastSellEstimate';
+const DISMISSED_KEY = 'dismissedSellEstimate';
 const UNCERTAIN = 'BELIRSIZ';
 
-const NO_RESULT: SimpleResult = {
-  status: 'YOK', answer: null, name: null, ilanNo: null, message: null, requestId: null, createdAt: null,
-  remaining: null,
+// Dokunulmamış bir parça "Orijinal" sayılır (kullanıcı sadece değişen/boyalı
+// olanları işaretler) — bkz. SellEstimateForm.tsx.
+const DEFAULT_PANELS: SellPanels = SELL_PANEL_KEYS.reduce((acc, key) => {
+  acc[key] = 'Orijinal';
+  return acc;
+}, {} as SellPanels);
+
+const NO_RESULT: SellEstimateResult = {
+  status: 'YOK', price: null, requestId: null, name: null, brand: null, model: null,
+  package: null, year: null, km: null, panels: null, heavyDamage: false, createdAt: null,
 };
 
-// 'YOK' işareti "sunucuda bu cihaza ait istek yok" bilgisinin kesinleştiğini gösterir.
-const persist = (result: SimpleResult) => {
+const persist = (result: SellEstimateResult) => {
   setConfig(CACHE_KEY, result.status === 'YOK' ? 'YOK' : JSON.stringify(result)).catch(() => {});
 };
 
-export const useSimpleRequest = () => {
+export const useSellEstimate = () => {
   const [clientId,       setClientId]       = useState('');
   const [name,           setName]           = useState('');
-  const [ilanNo,         setIlanNo]         = useState('');
-  const [message,        setMessage]        = useState('');
+  const [brand,          setBrand]          = useState('');
+  const [model,          setModel]          = useState('');
+  const [pkg,            setPkg]            = useState('');
+  const [year,           setYear]           = useState('');
+  const [km,             setKm]             = useState('');
+  const [panels,         setPanels]         = useState<SellPanels>(DEFAULT_PANELS);
+  const [heavyDamage,    setHeavyDamage]    = useState(false);
+  const [brands,         setBrands]         = useState<string[]>([]);
+  const [models,         setModels]         = useState<string[]>([]);
+  const [loadingModels,  setLoadingModels]  = useState(false);
+  const [modalType,      setModalType]      = useState<'brand' | 'model' | 'year' | null>(null);
   const [loading,        setLoading]        = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [statusError,    setStatusError]    = useState('');
   const [error,          setError]          = useState('');
   const [submitted,      setSubmitted]      = useState(false);
-  const [result,         setResult]         = useState<SimpleResult | null>(null);
+  const [result,         setResult]         = useState<SellEstimateResult | null>(null);
   const [cancelling,     setCancelling]     = useState(false);
   const checkedRef  = useRef(false);
   const seqRef      = useRef(0);
   const inFlightRef = useRef(false);
-  const resultRef   = useRef<SimpleResult | null>(null);
+  const resultRef   = useRef<SellEstimateResult | null>(null);
   resultRef.current = result;
   const knownNoneRef  = useRef(false);
   const cacheReadyRef = useRef<Promise<void>>(Promise.resolve());
 
+  useEffect(() => { fetchBrands().then(setBrands).catch(() => {}); }, []);
+
+  const loadModels = useCallback((selectedBrand: string) => {
+    setLoadingModels(true);
+    fetchModels(selectedBrand)
+      .then(setModels)
+      .catch(() => setModels([]))
+      .finally(() => setLoadingModels(false));
+  }, []);
+
   useEffect(() => {
     getClientId().then(setClientId).catch(() => {});
     cacheReadyRef.current = getConfig(CACHE_KEY).then(raw => {
-      // Kayıt hiç yoksa bu cihaz hiç istek göndermemiştir; sunucuya sormaya gerek yok.
       if (!raw || raw === 'YOK') { knownNoneRef.current = true; return; }
-      if (raw === UNCERTAIN) return;   // gönderim hatası: isteğin ulaşıp ulaşmadığı belirsiz, sor
+      if (raw === UNCERTAIN) return;
       try {
-        const cached = JSON.parse(raw) as SimpleResult;
+        const cached = JSON.parse(raw) as SellEstimateResult;
         setResult(prev => prev ?? cached);
       } catch {
         // bozuk önbelleği yok say
@@ -59,7 +88,7 @@ export const useSimpleRequest = () => {
     }).catch(() => {});
   }, []);
 
-  const applyDismissed = async (data: SimpleResult): Promise<SimpleResult> => {
+  const applyDismissed = async (data: SellEstimateResult): Promise<SellEstimateResult> => {
     if (data.status !== 'GÖRÜLDÜ' && data.status !== 'HAZIR') return data;
     const dismissed = await getConfig(DISMISSED_KEY).catch(() => null);
     return dismissed && data.requestId === dismissed ? NO_RESULT : data;
@@ -73,7 +102,7 @@ export const useSimpleRequest = () => {
     setCheckingStatus(true);
     setStatusError('');
     try {
-      const raw = await checkEvaluation(clientId);
+      const raw = await checkSellEstimate(clientId);
       if (seq !== seqRef.current) return;
       const data = await applyDismissed(raw);
       if (seq !== seqRef.current) return;
@@ -81,10 +110,8 @@ export const useSimpleRequest = () => {
       setResult(data);
       persist(data);
       if (data.status === 'BEKLİYOR') syncPushToken();
-      // Öneri akışıyla aynı: HAZIR görülünce sunucuda GÖRÜLDÜ'e çekilir —
-      // böylece yeni bir değerlendirme isteği göndermek engellenmez kalmaz.
       if (data.status === 'HAZIR') {
-        await markAsSeen(clientId, 'evaluation');
+        await markAsSeen(clientId, 'sell');
         if (seq === seqRef.current) {
           const seen = { ...data, status: 'GÖRÜLDÜ' as const };
           setResult(seen);
@@ -106,8 +133,6 @@ export const useSimpleRequest = () => {
   const checkStatus = useCallback(() => runCheck(false), [runCheck]);
   const forceCheck  = useCallback(() => runCheck(true),  [runCheck]);
 
-  // Değerlendirme sekmesi ilk açıldığında bir kez sorgular (sekme açılmadan
-  // sunucuya gereksiz istek atılmaz).
   const checkOnMount = useCallback(async () => {
     if (checkedRef.current || !clientId) return;
     checkedRef.current = true;
@@ -116,9 +141,16 @@ export const useSimpleRequest = () => {
     await runCheck(false);
   }, [clientId, runCheck]);
 
+  const setPanel = useCallback((key: SellPanelKey, status: SellPanelStatus) => {
+    setPanels(prev => ({ ...prev, [key]: status }));
+  }, []);
+
   const validate = (): string | null => {
-    if (!message.trim()) return 'Mesaj alanı zorunludur.';
-    if (message.trim().length < 10) return 'Lütfen daha ayrıntılı bir mesaj yazın.';
+    if (!brand.trim())  return 'Marka zorunludur.';
+    if (!model.trim())  return 'Model zorunludur.';
+    if (!pkg.trim())    return 'Motor seçeneği ve araç paketi zorunludur.';
+    if (!year.trim())   return 'Model yılı zorunludur.';
+    if (!km.trim())     return 'Kilometre zorunludur.';
     return null;
   };
 
@@ -130,20 +162,21 @@ export const useSimpleRequest = () => {
 
     setLoading(true);
     try {
-      const payload: SimpleRequest = {
-        clientId, name: name.trim() || 'Belirtilmedi', ilanNo: ilanNo.trim(), message: message.trim(),
+      const payload: SellEstimateRequest = {
+        clientId, name: name.trim() || 'Belirtilmedi',
+        brand: brand.trim(), model: model.trim(), package: pkg.trim(),
+        year: year.trim(), km: km.trim(), panels, heavyDamage,
       };
-      await submitEvaluation(payload);
+      await submitSellEstimate(payload);
       setSubmitted(true);
       knownNoneRef.current = false;
       persist({ ...NO_RESULT, status: 'BEKLİYOR' });
       syncPushToken();
-      setName('');
-      setIlanNo('');
-      setMessage('');
+      setName(''); setBrand(''); setModel(''); setPkg(''); setYear(''); setKm('');
+      setPanels(DEFAULT_PANELS);
+      setHeavyDamage(false);
       forceCheck();
     } catch (err: any) {
-      // İstek sunucuya ulaşmış olabilir: bir sonraki açılışta mutlaka sor.
       knownNoneRef.current = false;
       setConfig(CACHE_KEY, UNCERTAIN).catch(() => {});
       setError(err?.message || 'İstek gönderilemedi. İnternet bağlantınızı kontrol edin.');
@@ -151,13 +184,12 @@ export const useSimpleRequest = () => {
     } finally {
       setLoading(false);
     }
-  }, [clientId, ilanNo, message, forceCheck]);
+  }, [clientId, name, brand, model, pkg, year, km, panels, heavyDamage, forceCheck]);
 
   const reset = useCallback(() => {
     const id = resultRef.current?.requestId;
     if (id) setConfig(DISMISSED_KEY, id).catch(() => {});
-    // Otomatik markAsSeen daha önce ağ hatasıyla başarısız olduysa bir şans daha.
-    if (clientId) markAsSeen(clientId, 'evaluation').catch(() => {});
+    if (clientId) markAsSeen(clientId, 'sell').catch(() => {});
     seqRef.current++;
     inFlightRef.current = false;
     setCheckingStatus(false);
@@ -166,18 +198,16 @@ export const useSimpleRequest = () => {
     setResult(null);
     persist(NO_RESULT);
     knownNoneRef.current = true;
-    setName('');
-    setIlanNo('');
-    setMessage('');
-  }, []);
+    setName(''); setBrand(''); setModel(''); setPkg(''); setYear(''); setKm('');
+    setPanels(DEFAULT_PANELS);
+    setHeavyDamage(false);
+  }, [clientId]);
 
-  // Uzman hiç yanıtlamazsa kullanıcı sonsuza kadar "İnceleniyor" ekranında
-  // kilitli kalmasın diye bekleyen isteği geri çeker.
   const cancelPending = useCallback(async () => {
     setCancelling(true);
     setStatusError('');
     try {
-      await cancelEvaluation();
+      await cancelSellEstimate();
       seqRef.current++;
       inFlightRef.current = false;
       setSubmitted(false);
@@ -195,8 +225,15 @@ export const useSimpleRequest = () => {
   return {
     clientId,
     name, setName,
-    ilanNo, setIlanNo,
-    message, setMessage,
+    brand, setBrand,
+    model, setModel,
+    pkg, setPkg,
+    year, setYear,
+    km, setKm,
+    panels, setPanel,
+    heavyDamage, setHeavyDamage,
+    brands, models, loadingModels, loadModels,
+    modalType, setModalType,
     loading, checkingStatus, statusError, error,
     submitted, result,
     cancelling, cancelPending,

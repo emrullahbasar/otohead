@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, Pressable, TextInput, Alert, StyleSheet,
+  View, Text, ScrollView, Pressable, TextInput, Alert,
   Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { Car } from '../../types';
