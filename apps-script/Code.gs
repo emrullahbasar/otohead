@@ -241,6 +241,13 @@ function doPost(e) {
     if ((action === 'check' || action === 'checkEval' || action === 'checkSell' || action === 'history') && !checkActionRateLimit_(data.clientId, 'check', 30)) {
       return response({ success: false, error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' });
     }
+    // Kalan kimlik-doğrulamalı uçlar da (durum/token yazan, iptal eden) bir hız
+    // sınırına bağlı olmalı — aksi halde kimliği geçerli ama bozuk/kötü niyetli
+    // bir istemci bu yazma uçlarını spam'leyip sayfayı gereksiz zorlayabilirdi.
+    // 30/dk normal kullanımda asla aşılmaz (bunlar seyrek, UI tetikli aksiyonlar).
+    if ((action === 'markSeen' || action === 'setPushToken' || action === 'cancel' || action === 'cancelEval' || action === 'cancelSell') && !checkActionRateLimit_(data.clientId, 'misc', 30)) {
+      return response({ success: false, error: 'Çok fazla istek. Lütfen biraz sonra tekrar deneyin.' });
+    }
 
     if (action === 'submit') {
       return handleSubmit(data);
