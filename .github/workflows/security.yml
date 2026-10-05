@@ -1,0 +1,58 @@
+name: security
+
+# Kök repo için güvenlik otomasyonu. Daha önce aynı tarama yalnızca (artık
+# silinmiş) backend/ reposunda vardı; kök proje hiç taranmıyordu — bkz.
+# REMEDIATION-PLAN.md P2#17. Bu workflow o boşluğu kapatır.
+#
+# İki ayrı güvence:
+#   1) gitleaks  — commit'lere sır (API key, token, .env içeriği) sızmasını
+#      SERT olarak engeller. Projenin geçmişinde tam da bu yaşandı (SEC-002:
+#      backend/.env commit'lenmişti), bu yüzden bu iş başarısız olursa CI kırmızı olur.
+#   2) npm audit — bağımlılık zafiyetlerini raporlar. Kalan uyarıların çoğu
+#      Expo build-tooling'in transitive'idir ve `--force` native build'i bozar
+#      (SEC-012), bu yüzden bu iş bilgilendirir ama build'i BLOKLAMAZ.
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    name: Sır taraması (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks tüm geçmişi tarayabilsin
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    name: Bağımlılık denetimi (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: npm audit (yüksek+ zafiyetler)
+        # Bilgilendirir ama build'i bloklamaz: kalan yüksek uyarılar Expo
+        # tooling transitive'idir, düzeltmesi breaking (bkz. SECURITY-AUDIT.md
+        # SEC-012). Çıktı iş özetinde görünür; sır taraması asıl sert gate'tir.
+        continue-on-error: true
+        run: |
+          npm audit --audit-level=high | tee audit.txt
+          {
+            echo '### npm audit özeti'
+            echo ''
+            echo '```'
+            tail -n 20 audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

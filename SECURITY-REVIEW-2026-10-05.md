@@ -41,7 +41,7 @@ kodla kapatılamayan **manuel doğrulama kalemleri** listelendi.
 
 | ID | Başlık | Severity | Durum |
 |---|---|---|---|
-| REV-001 | Kök repoda CI güvenlik otomasyonu yoktu (gitleaks + npm audit) | Low (hijyen) | ⏳ Workflow hazır (bkz. Ek A); `workflow` token izni gerektirdiği için PR'a ayrı adımda ekleniyor |
+| REV-001 | Kök repoda CI güvenlik otomasyonu yoktu (gitleaks + npm audit) | Low (hijyen) | ✅ `.github/workflows/security.yml` eklendi (içerik ayrıca Ek A'da) |
 | REV-002 | Bazı kimlik-doğrulamalı uçlarda (`setPushToken`, `markSeen`, `cancel*`) rate-limit yoktu | Low | ✅ `Code.gs` doPost'a `misc` hız sınırı (30/dk) eklendi |
 | REV-003 | `SECURITY.md` kapsamı bayat — artık silinmiş `backend/` reposuna atıf veriyordu | Info | ✅ Güncellendi + otomatik tarama bölümü eklendi |
 | REV-004 | `fuelApi.getFuelRecords` okuma hatası yanlış mesajla/log'la yutuluyordu (copy-paste) | Low (doğruluk) | ✅ Okuma yoluna doğru hata mesajı |
@@ -57,11 +57,8 @@ commit'lenmişti) sır taramasının kök repoda **sert gate** olması değerli.
 - `dependency-audit` işi (npm audit) — bilgilendirir, `continue-on-error` ile build'i bloklamaz
   (kalan uyarılar Expo tooling transitive'i, bkz. REV sonrası "Bağımlılıklar").
 
-> ℹ️ Workflow dosyasının (`.github/workflows/security.yml`) tam içeriği **Ek A**'dadır.
-> GitHub'a `.github/workflows/` altına dosya push etmek token'da `workflow` izni gerektirir;
-> bu yüzden dosya bu PR'a iki yoldan biriyle eklenebilir: (a) `gh auth refresh -h github.com -s workflow`
-> sonrası push, ya da (b) GitHub web arayüzünden **Add file → Create new file** ile
-> `.github/workflows/security.yml` oluşturup Ek A içeriğini yapıştırmak (scope gerektirmez).
+> ℹ️ Workflow dosyası (`.github/workflows/security.yml`) bu PR'a eklendi; tam içeriği
+> referans olması için **Ek A**'da da korunuyor.
 
 ### REV-002 — Eksik rate-limit
 
