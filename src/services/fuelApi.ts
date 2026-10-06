@@ -34,14 +34,12 @@ export const getFuelRecords = async (carId: string): Promise<FuelRecord[]> => {
       isFull:        r.isFull === 1,
       station:       r.station ?? undefined,
     }));
-  } catch (err) {
-  console.error('addFuelRecord hatası:', err);
-  throw new DatabaseError('Yakıt kaydı eklenemedi.');
-}
+  } catch {
+    throw new DatabaseError('Yakıt kayıtları okunamadı.');
+  }
 };
 
 export const addFuelRecord = async (
-  
   record: FuelRecord,
   carId: string,
 ): Promise<void> => {
